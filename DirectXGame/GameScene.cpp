@@ -16,6 +16,9 @@ GameScene::~GameScene() = default;
 void GameScene::Initialize(StageManager* stageDataManager) {
 	stageManager_ = stageDataManager;
 
+	CameraController::RegisterGlobalVariables();
+	CameraController::ApplyGlobalVariables();
+
 	camera_.farZ = 10000.0f;
 	camera_.Initialize();
 
@@ -40,8 +43,6 @@ void GameScene::Initialize(StageManager* stageDataManager) {
 	// --- camera ---
 	cameraController_ = std::make_unique<CameraController>();
 	cameraController_->Initialize(&camera_);
-	cameraController_->EnableTopDown();
-	UpdateCameraWorldBounds();
 
 	// --- build blocks + spawn from the number codes ---
 	for (uint32_t cz = 0; cz < mapChipField_->GetChunkCountZ(); ++cz) {
@@ -127,16 +128,16 @@ void GameScene::GenerateChunk(uint32_t chunkX, uint32_t chunkZ) {
 void GameScene::SpawnPlayer(const Vector3& position) {
 	player_ = std::make_unique<Player>();
 	player_->SetMapChipField(mapChipField_.get());
+
 	const std::array<PartResources, static_cast<size_t>(PartSlot::kCount)> parts = {
 	    {{assets_.modelPlayerBody.get(), assets_.playerBodyTex}, {assets_.modelPlayerHead.get(), assets_.playerHeadTex}, {assets_.modelPlayerHat.get(), assets_.playerHatTex}}
     };
-	player_->Initialize(parts, &camera_, position);
-	cameraController_->SetTarget(player_.get());
-	cameraController_->Reset();
-}
 
-void GameScene::UpdateCameraWorldBounds() {
-	cameraController_->SetWorldBounds(mapChipField_->GetWorldMinX(), mapChipField_->GetWorldMaxX(), mapChipField_->GetWorldMinZ(), mapChipField_->GetWorldMaxZ());
+	player_->Initialize(parts, &camera_, position);
+
+	cameraController_->SetTarget(player_.get());
+	cameraController_->EnableThirdPerson();
+	cameraController_->Reset();
 }
 
 void GameScene::Update() {
@@ -144,12 +145,16 @@ void GameScene::Update() {
 	if (fade_->status_ == Fade::Status::FadeIn && fade_->IsFinished()) {
 		fade_->Stop();
 	}
-
 	// Escape goes back to the title menu (main.cpp's switch handles the rest)
 	if (Input::GetInstance()->TriggerKey(DIK_ESCAPE)) {
 		returnToMenuRequested_ = true;
 		return;
 	}
+	CameraController::ApplyGlobalVariables();
+
+
+	// カメラの向きを先に更新
+	cameraController_->UpdateLook();
 
 	if (player_) {
 		player_->Update();

@@ -99,9 +99,13 @@ public:
 	int GetMouseY() const { return mouseY_; }
 	KamataEngine::Vector2 GetMouseScreenPosition() const { return mouseMovement_; }
 
+	// --- TPS camera ---
+	KamataEngine::Vector2 GetMouseDelta() const { return mouseDelta_; }
+	KamataEngine::Vector2 GetMoveAxis() const { return moveAxis_; }
+
 private:
 	InputManager() = default;
-	~InputManager() = default;
+	~InputManager();
 	InputManager(const InputManager&) = delete;
 	InputManager& operator=(const InputManager&) = delete;
 
@@ -128,6 +132,18 @@ private:
 	bool primaryMouseHeld_ = false;
 	bool secondaryMouseHeld_ = false;
 	bool secondaryMouseTriggered_ = false;
+
+	void UpdateMouseCapture(bool lockCursor);
+	void ReleaseMouseCapture();
+
+	// TPS camera input
+	KamataEngine::Vector2 mouseDelta_ = {};
+	KamataEngine::Vector2 moveAxis_ = {};
+
+	// Mouse cursor capture
+	bool mouseCaptured_ = false;
+	void* capturedWindow_ = nullptr;
+	int cursorHideCalls_ = 0;
 
 	// combined (mouse | pad)
 	bool primaryTriggered_ = false;

@@ -39,7 +39,6 @@ private:
 	// Builds the block objects of one chunk and spawns whatever its number codes ask for (player).
 	void GenerateChunk(uint32_t chunkX, uint32_t chunkZ);
 	void SpawnPlayer(const KamataEngine::Vector3& position);
-	void UpdateCameraWorldBounds();
 
 	StageManager* stageManager_ = nullptr;
 

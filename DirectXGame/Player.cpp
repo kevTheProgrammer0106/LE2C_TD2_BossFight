@@ -2,6 +2,8 @@
 #include "Player.h"
 #include "MapChipField.h"
 #include "PlayerBehavior.h"
+#include "InputManager.h"
+
 #include <algorithm>
 #include <cmath>
 #include <numbers>
@@ -40,43 +42,54 @@ void Player::Update() {
 	}
 	Move();
 	MapChipCollisionUpdate();
-	FaceMovement();
 	UpdateBodyParts();
 }
 
-// WASD on the X-Z plane: W = +Z (screen up), S = -Z, D = +X, A = -X
+// カメラの向きを基準にX-Z平面上を移動する
+// カメラの向きを基準にX-Z平面上を移動する
 void Player::Move() {
-	Input* input = Input::GetInstance();
+	InputManager* input = InputManager::GetInstance();
 
-	Vector3 dir = {};
-	if (input->PushKey(DIK_D))
-		dir.x += 1.0f;
-	if (input->PushKey(DIK_A))
-		dir.x -= 1.0f;
-	if (input->PushKey(DIK_W))
-		dir.z += 1.0f;
-	if (input->PushKey(DIK_S))
-		dir.z -= 1.0f;
+	const float cameraYaw = camera_ ? camera_->rotation_.y : 0.0f;
+
+	// カメラの前方ベクトル
+	const Vector3 forward = {std::sin(cameraYaw), 0.0f, std::cos(cameraYaw)};
+
+	// カメラの右方向ベクトル
+	const Vector3 right = {std::cos(cameraYaw), 0.0f, -std::sin(cameraYaw)};
+
+	const Vector2 moveAxis = input->GetMoveAxis();
+
+	// カメラ基準の移動方向
+	Vector3 dir = {right.x * moveAxis.x + forward.x * moveAxis.y, 0.0f, right.z * moveAxis.x + forward.z * moveAxis.y};
 
 	const float len = std::sqrt(dir.x * dir.x + dir.z * dir.z);
+
 	if (len > 0.0f) {
-		dir.x /= len; // diagonals are not faster
+		dir.x /= len;
 		dir.z /= len;
+
 		velocity_.x += dir.x * kAcceleration;
 		velocity_.z += dir.z * kAcceleration;
 
 		const float speed = std::sqrt(velocity_.x * velocity_.x + velocity_.z * velocity_.z);
+
 		if (speed > kLimitRunSpeed) {
 			velocity_.x *= kLimitRunSpeed / speed;
 			velocity_.z *= kLimitRunSpeed / speed;
 		}
 	} else {
+		// 入力がない場合は慣性を減衰させる
 		velocity_.x *= (1.0f - kAttenuation);
 		velocity_.z *= (1.0f - kAttenuation);
-		if (std::abs(velocity_.x) < 0.0005f)
+
+		if (std::abs(velocity_.x) < 0.0005f) {
 			velocity_.x = 0.0f;
-		if (std::abs(velocity_.z) < 0.0005f)
+		}
+
+		if (std::abs(velocity_.z) < 0.0005f) {
 			velocity_.z = 0.0f;
+		}
 	}
 }
 
@@ -104,22 +117,6 @@ void Player::MapChipCollisionUpdate() {
 		velocity_.x = 0.0f;
 	if (std::abs(info.move.z) < std::abs(velocity_.z))
 		velocity_.z = 0.0f;
-}
-
-void Player::FaceMovement() {
-	const float speed = std::sqrt(velocity_.x * velocity_.x + velocity_.z * velocity_.z);
-	if (speed < 0.01f) {
-		return;
-	}
-	// model rotation_.y = 0 faces +Z, pi/2 faces +X
-	const float target = std::atan2(velocity_.x, velocity_.z);
-	float diff = target - worldTransform_.rotation_.y;
-	constexpr float kPi = std::numbers::pi_v<float>;
-	while (diff > kPi)
-		diff -= 2.0f * kPi;
-	while (diff < -kPi)
-		diff += 2.0f * kPi;
-	worldTransform_.rotation_.y += diff * kTurnRate;
 }
 
 void Player::UpdateBodyParts() {

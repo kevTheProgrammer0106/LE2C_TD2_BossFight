@@ -1,3 +1,4 @@
+
 #pragma once
 
 #define NOMINMAX
@@ -7,40 +8,71 @@
 class Player;
 
 // Initialize() leaves the camera in its default pose (what the title / level-select scenes need).
-// The game scene then calls EnableTopDown(): the camera sits straight above the target looking down (-Y),
-// screen-up = +Z, screen-right = +X, and Update() follows the target.
+// The game scene then calls EnableThirdPerson(): the camera follows the target from behind.
 class CameraController {
 public:
+	static void RegisterGlobalVariables();
+	static void ApplyGlobalVariables();
+
 	void Initialize(KamataEngine::Camera* camera);
-	void EnableTopDown() { topDown_ = true; }
+
+	void EnableThirdPerson() {
+		thirdPersonEnabled_ = true;
+		needsSnap_ = true;
+	}
+
 	void Update();
 	void Reset(); // snap to the target without smoothing
 
-	void SetTarget(Player* target) { target_ = target; }
-	void SetHeight(float height) { height_ = height; }
-	float GetHeight() const { return height_; }
-
-	// world-space EDGES; the view never shows outside them (the view is centred if the world is smaller than the screen)
-	void SetWorldBounds(float minX, float maxX, float minZ, float maxZ) {
-		minX_ = minX;
-		maxX_ = maxX;
-		minZ_ = minZ;
-		maxZ_ = maxZ;
-		hasBounds_ = true;
+	void SetTarget(Player* target) {
+		target_ = target;
+		needsSnap_ = true;
+		orbitInitialized_ = false;
 	}
 
+	void SetTargetOffset(KamataEngine::Vector3 offset) {
+		targetOffset_ = offset;
+		needsSnap_ = true;
+	}
+
+	void SetRotationOffset(KamataEngine::Vector3 rotation) {
+		rotationOffset_ = rotation;
+		needsSnap_ = true;
+	}
+
+	void SetHeight(float height) {
+		targetOffset_.y = height;
+		needsSnap_ = true;
+	}
+
+	float GetHeight() const { return targetOffset_.y; }
+
+public:
+	void UpdateLook(); // カメラ入力をプレイヤー移動より先に更新する
+
 private:
+	void InitializeOrbit();
+
+	bool orbitInitialized_ = false;
+
+	float orbitYaw_ = 0.0f;
+	float lookPitchOffset_ = 0.0f;
+	float appliedRotationOffsetY_ = 0.0f;
+
+	static inline float kMouseSensitivity_ = 0.0025f;
+
 	KamataEngine::Vector3 ComputeTargetPosition() const;
-	void ApplyTopDownView(); // builds the straight-down view matrix directly (no Euler-angle convention involved)
-	float ClampAxis(float value, float minEdge, float maxEdge, float halfView) const;
+	void ApplyThirdPersonView();
 
 	KamataEngine::Camera* camera_ = nullptr;
 	Player* target_ = nullptr;
-	bool topDown_ = false;
 
-	float height_ = 30.0f; // camera Y above the ground
+	bool thirdPersonEnabled_ = false;
+	bool needsSnap_ = true;
+
+	// プレイヤー基準のカメラ位置と回転のオフセット
+	static inline KamataEngine::Vector3 targetOffset_ = {0.0f, 3.0f, -8.0f};
+	static inline KamataEngine::Vector3 rotationOffset_ = {0.3f, 0.0f, 0.0f};
+
 	static inline float kInterpolationRate = 0.1f;
-
-	bool hasBounds_ = false;
-	float minX_ = 0.0f, maxX_ = 0.0f, minZ_ = 0.0f, maxZ_ = 0.0f;
 };

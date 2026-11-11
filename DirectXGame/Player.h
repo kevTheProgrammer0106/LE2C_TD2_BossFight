@@ -30,7 +30,6 @@ public:
 private:
 	void Move();
 	void MapChipCollisionUpdate();
-	void FaceMovement();
 	void UpdateBodyParts();
 
 	KamataEngine::Camera* camera_ = nullptr;
