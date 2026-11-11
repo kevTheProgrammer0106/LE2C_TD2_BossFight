@@ -44,11 +44,6 @@ void LoadDebugSettings() {
 		lineStream >> key >> value;
 		if (key == "InitialStage") {
 			stageManager->SetCurrentStageIndexByName(value);
-		} else if (key == "StartScene") { // optional debug shortcut: "StartScene Game" skips the title
-			if (value == "Game")
-				startScene = Scene::kGame;
-			else if (value == "LevelSelect")
-				startScene = Scene::kLevelSelect;
 		}
 	}
 }
@@ -183,23 +178,14 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 #ifdef _DEBUG
 	LoadDebugSettings();
+	scene = Scene::kGame;
+	gameScene = new GameScene();
+	gameScene->Initialize(stageManager);
+#else
+	scene = Scene::kTitle;
+	titleScene = new TitleScene();
+	titleScene->Initialize();
 #endif
-	scene = startScene;
-	switch (scene) {
-	case Scene::kGame:
-		gameScene = new GameScene();
-		gameScene->Initialize(stageManager);
-		break;
-	case Scene::kLevelSelect:
-		levelSelectScene = new LevelSelectScene();
-		levelSelectScene->Initialize(stageManager, false);
-		break;
-	default:
-		scene = Scene::kTitle;
-		titleScene = new TitleScene();
-		titleScene->Initialize();
-		break;
-	}
 
 	while (true) {
 		if (KamataEngine::Update())
