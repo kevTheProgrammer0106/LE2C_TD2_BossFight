@@ -14,6 +14,7 @@ void Log(const std::string& message) { OutputDebugStringA(("[GameScene] " + mess
 GameScene::~GameScene() = default;
 
 void GameScene::Initialize(StageManager* stageDataManager) {
+	InputManager::GetInstance()->SetCursorLockAllowed(true);
 	stageManager_ = stageDataManager;
 
 	CameraController::RegisterGlobalVariables();

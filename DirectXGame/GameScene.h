@@ -10,6 +10,7 @@
 #include "Global.h"
 #include "MapChipField.h"
 #include "Player.h"
+#include "InputManager.h"
 
 class StageManager;
 

@@ -27,6 +27,11 @@
 ///  Aim             : Mouse position            | Right stick
 ///  Menu up/down    : W,S / Up,Down             | D-Pad / either stick
 ///  Menu confirm    : Space                     | A   (mouse click handled by UIMenu AABB)
+///
+/// TPS cursor behavior:
+///  - Gameplay locked: cursor hidden and recentered; mouse delta rotates the camera.
+///  - Gameplay free: Alt toggles to a visible, freely moving system cursor.
+///  - UI: system cursor hidden but not locked; UIMenu draws its own cursor sprite.
 /// </summary>
 class InputManager {
 public:
@@ -39,6 +44,9 @@ public:
 	bool IsMoveRightHeld() const { return moveRightHeld_; }
 	// -1.0 / 0.0 / 1.0 (左右同時押しは0)
 	float GetMoveAxisX() const;
+
+	// TPS用の移動軸。x=右+, y=前+
+	KamataEngine::Vector2 GetMoveAxis() const { return moveAxis_; }
 
 	// 旧名(エイリアス)
 	bool PushLeftKey() const { return moveLeftHeld_; }
@@ -99,9 +107,12 @@ public:
 	int GetMouseY() const { return mouseY_; }
 	KamataEngine::Vector2 GetMouseScreenPosition() const { return mouseMovement_; }
 
-	// --- TPS camera ---
+	// TPSカメラ用の相対マウス移動量。ロック中のみ値が入る。
 	KamataEngine::Vector2 GetMouseDelta() const { return mouseDelta_; }
-	KamataEngine::Vector2 GetMoveAxis() const { return moveAxis_; }
+
+	// ゲームプレイ中のみAltによるカーソルロック切り替えを許可する。
+	// false: UI用(システムカーソル非表示・自由移動)、true: gameplay(初期ロック)。
+	void SetCursorLockAllowed(bool allowed);
 
 private:
 	InputManager() = default;
@@ -109,11 +120,17 @@ private:
 	InputManager(const InputManager&) = delete;
 	InputManager& operator=(const InputManager&) = delete;
 
+	// カーソルとマウス相対移動量の管理
+	void UpdateMouseCapture(bool lockCursor);
+	void ReleaseMouseCapture();
+	void SetSystemCursorVisible(bool visible);
+
 	// movement
 	bool moveLeftHeld_ = false;
 	bool moveRightHeld_ = false;
 	bool moveLeftTriggered_ = false;
 	bool moveRightTriggered_ = false;
+	KamataEngine::Vector2 moveAxis_ = {};
 
 	bool jumpHeld_ = false;
 	bool jumpTriggered_ = false;
@@ -133,17 +150,20 @@ private:
 	bool secondaryMouseHeld_ = false;
 	bool secondaryMouseTriggered_ = false;
 
-	void UpdateMouseCapture(bool lockCursor);
-	void ReleaseMouseCapture();
+	// Cursor mode state
+	bool lockCursor_ = false;
+	bool cursorLockAllowed_ = false;
+	bool cursorModeInitialized_ = false;
+	bool systemCursorVisible_ = true;
+	bool mouseCaptured_ = false;
+	void* capturedWindow_ = nullptr;
+
+	// Alt入力の連続切り替えを防ぐクールダウン(60fpsで約0.17秒)
+	int cursorToggleCooldownFrames_ = 0;
+	static constexpr int kCursorToggleCooldownFrames_ = 10;
 
 	// TPS camera input
 	KamataEngine::Vector2 mouseDelta_ = {};
-	KamataEngine::Vector2 moveAxis_ = {};
-
-	// Mouse cursor capture
-	bool mouseCaptured_ = false;
-	void* capturedWindow_ = nullptr;
-	int cursorHideCalls_ = 0;
 
 	// combined (mouse | pad)
 	bool primaryTriggered_ = false;

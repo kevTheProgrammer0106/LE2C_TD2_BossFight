@@ -1,4 +1,6 @@
+#define NOMINMAX
 #include "InputManager.h"
+
 #include <Windows.h>
 #include <algorithm>
 #include <cmath>
@@ -39,96 +41,96 @@ float NormalizeStickAxis(SHORT value, SHORT deadZone) {
 }
 } // namespace
 
+InputManager::~InputManager() {
+	ReleaseMouseCapture();
+	SetSystemCursorVisible(true);
+}
 
-InputManager::~InputManager() { ReleaseMouseCapture(); }
+InputManager* InputManager::GetInstance() {
+	static InputManager instance;
+	return &instance;
+}
 
-// マウスをゲーム画面中央に固定して相対移動量を取得する
+// ShowCursorの表示カウンターを管理し、指定した表示状態に合わせる
+void InputManager::SetSystemCursorVisible(bool visible) {
+	if (systemCursorVisible_ == visible) {
+		return;
+	}
+
+	int displayCount = 0;
+	if (visible) {
+		do {
+			displayCount = ShowCursor(TRUE);
+		} while (displayCount < 0);
+	} else {
+		do {
+			displayCount = ShowCursor(FALSE);
+		} while (displayCount >= 0);
+	}
+
+	systemCursorVisible_ = visible;
+}
+
+// カーソルをゲーム画面中央に固定して相対移動量を取得する
 void InputManager::UpdateMouseCapture(bool lockCursor) {
 	mouseDelta_ = {};
 
-	HWND window = GetForegroundWindow();
+	if (!lockCursor) {
+		ReleaseMouseCapture();
+		return;
+	}
 
+	HWND window = GetForegroundWindow();
 	if (!window || !IsWindow(window)) {
 		ReleaseMouseCapture();
 		return;
 	}
 
-	// 別のプロセスが前面にある場合はカーソルを解放
+	// 別のプロセスが前面にある場合はキャプチャを解除する
 	DWORD processId = 0;
 	GetWindowThreadProcessId(window, &processId);
-
 	if (processId != GetCurrentProcessId()) {
 		ReleaseMouseCapture();
 		return;
 	}
 
 	RECT clientRect{};
-	if (!GetClientRect(window, &clientRect)) {
-		ReleaseMouseCapture();
-		return;
-	}
-
-	if (clientRect.right <= clientRect.left || clientRect.bottom <= clientRect.top) {
+	if (!GetClientRect(window, &clientRect) || clientRect.right <= clientRect.left || clientRect.bottom <= clientRect.top) {
 		ReleaseMouseCapture();
 		return;
 	}
 
 	POINT centerClient = {(clientRect.left + clientRect.right) / 2, (clientRect.top + clientRect.bottom) / 2};
-
 	POINT centerScreen = centerClient;
-
 	if (!ClientToScreen(window, &centerScreen)) {
 		ReleaseMouseCapture();
 		return;
 	}
 
-	RECT screenRect = clientRect;
-
-	POINT topLeft = {screenRect.left, screenRect.top};
-	POINT bottomRight = {screenRect.right, screenRect.bottom};
-
+	POINT topLeft = {clientRect.left, clientRect.top};
+	POINT bottomRight = {clientRect.right, clientRect.bottom};
 	if (!ClientToScreen(window, &topLeft) || !ClientToScreen(window, &bottomRight)) {
 		ReleaseMouseCapture();
 		return;
 	}
 
-	screenRect = {topLeft.x, topLeft.y, bottomRight.x, bottomRight.y};
+	const RECT screenRect = {topLeft.x, topLeft.y, bottomRight.x, bottomRight.y};
 
-	// RMBが押されている間はカーソルを解放する
-	if (!lockCursor) {
+	// キャプチャ開始時はカーソルを中央へ移動し、最初のフレームのdeltaを0にする
+	if (!mouseCaptured_ || capturedWindow_ != reinterpret_cast<void*>(window)) {
 		ReleaseMouseCapture();
+		mouseCaptured_ = true;
+		capturedWindow_ = reinterpret_cast<void*>(window);
+		ClipCursor(&screenRect);
+		SetCursorPos(centerScreen.x, centerScreen.y);
 
-		POINT cursor{};
-		if (GetCursorPos(&cursor) && ScreenToClient(window, &cursor)) {
-			mouseMovement_ = {static_cast<float>(cursor.x), static_cast<float>(cursor.y)};
-
-			mouseX_ = cursor.x;
-			mouseY_ = cursor.y;
-		}
-
+		mouseMovement_ = {static_cast<float>(centerClient.x), static_cast<float>(centerClient.y)};
+		mouseX_ = centerClient.x;
+		mouseY_ = centerClient.y;
 		return;
 	}
 
-	// キャプチャ開始、または操作対象のウィンドウが変わった場合
-	if (!mouseCaptured_ || capturedWindow_ != reinterpret_cast<void*>(window)) {
-		ReleaseMouseCapture();
-
-		mouseCaptured_ = true;
-		capturedWindow_ = reinterpret_cast<void*>(window);
-
-		// カーソルを非表示にする。解除時に同じ回数だけ表示カウントを戻す
-		cursorHideCalls_ = 0;
-
-		int displayCount = 0;
-		do {
-			displayCount = ShowCursor(FALSE);
-			++cursorHideCalls_;
-		} while (displayCount >= 0);
-
-		mouseDelta_ = {};
-	}
-
-	// ウィンドウサイズ変更にも対応してカーソルを画面内に制限
+	// ウィンドウの移動・リサイズ後もクライアント領域にカーソルを制限する
 	ClipCursor(&screenRect);
 
 	POINT currentCursor{};
@@ -141,31 +143,35 @@ void InputManager::UpdateMouseCapture(bool lockCursor) {
 	SetCursorPos(centerScreen.x, centerScreen.y);
 
 	mouseMovement_ = {static_cast<float>(centerClient.x), static_cast<float>(centerClient.y)};
-
 	mouseX_ = centerClient.x;
 	mouseY_ = centerClient.y;
 }
 
-// マウスキャプチャを解除してカーソルを表示する
+// マウスキャプチャと画面端の制限を解除する
 void InputManager::ReleaseMouseCapture() {
 	if (mouseCaptured_) {
 		ClipCursor(nullptr);
-
-		for (int i = 0; i < cursorHideCalls_; ++i) {
-			ShowCursor(TRUE);
-		}
 	}
 
-	cursorHideCalls_ = 0;
 	mouseCaptured_ = false;
 	capturedWindow_ = nullptr;
 	mouseDelta_ = {};
 }
 
+void InputManager::SetCursorLockAllowed(bool allowed) {
+	// 状態が変わったときだけモードを切り替える
+	if (cursorModeInitialized_ && cursorLockAllowed_ == allowed) {
+		return;
+	}
 
-InputManager* InputManager::GetInstance() {
-	static InputManager instance;
-	return &instance;
+	cursorModeInitialized_ = true;
+	cursorLockAllowed_ = allowed;
+	lockCursor_ = allowed;
+	cursorToggleCooldownFrames_ = 0;
+
+	// UIではOSカーソルを隠して自由移動にし、Gameplayでは初期ロックする
+	ReleaseMouseCapture();
+	SetSystemCursorVisible(false);
 }
 
 void InputManager::Update() {
@@ -207,18 +213,39 @@ void InputManager::Update() {
 
 	// --- Mouse ---
 	mouseMovement_ = input->GetMousePosition();
-
 	mouseX_ = static_cast<int>(mouseMovement_.x);
 	mouseY_ = static_cast<int>(mouseMovement_.y);
 
 	primaryMouseTriggered_ = input->IsTriggerMouse(0);
 	primaryMouseHeld_ = input->IsPressMouse(0);
-
 	secondaryMouseHeld_ = input->IsPressMouse(1);
 	secondaryMouseTriggered_ = input->IsTriggerMouse(1);
 
-	// RMBを押している間だけカーソルを解放する
-	UpdateMouseCapture(!secondaryMouseHeld_);
+	// --- Mouse cursor mode ---
+	if (cursorLockAllowed_) {
+		// クールダウンを毎フレーム減らし、Altの連続切り替えを防ぐ
+		if (cursorToggleCooldownFrames_ > 0) {
+			--cursorToggleCooldownFrames_;
+		}
+
+		// 押した瞬間だけ判定し、長押し中に毎フレーム反転しないようにする
+		const bool altTriggered = input->TriggerKey(DIK_LALT) || input->TriggerKey(DIK_RALT);
+		if (altTriggered && cursorToggleCooldownFrames_ == 0) {
+			lockCursor_ = !lockCursor_;
+			cursorToggleCooldownFrames_ = kCursorToggleCooldownFrames_;
+		}
+
+		UpdateMouseCapture(lockCursor_);
+
+		// ロックに失敗して非アクティブな場合はカーソルを表示する
+		SetSystemCursorVisible(!lockCursor_ || !mouseCaptured_);
+	} else {
+		// UI中はAlt切り替えを禁止。OSカーソルは隠し、UIMenuのカーソルを表示する
+		lockCursor_ = false;
+		cursorToggleCooldownFrames_ = 0;
+		UpdateMouseCapture(false);
+		SetSystemCursorVisible(false);
+	}
 
 	// --- TPS movement axis ---
 	const bool leftKey = input->PushKey(DIK_A) || input->PushKey(DIK_LEFT);
@@ -252,13 +279,11 @@ void InputManager::Update() {
 	}
 
 	// 斜め移動を正規化
-	const float length = std::sqrt(x * x + y * y);
-
-	if (length > 1.0f) {
-		x /= length;
-		y /= length;
+	const float moveLength = std::sqrt(x * x + y * y);
+	if (moveLength > 1.0f) {
+		x /= moveLength;
+		y /= moveLength;
 	}
-
 	moveAxis_ = {x, y};
 
 	// --- Combined mouse + pad ---
@@ -276,9 +301,12 @@ void InputManager::Update() {
 	// --- Right stick aim ---
 	const float ax = static_cast<float>(cur.Gamepad.sThumbRX);
 	const float ay = static_cast<float>(cur.Gamepad.sThumbRY);
-	const float len = std::sqrt(ax * ax + ay * ay);
-	if (len > static_cast<float>(kAimDeadZone_)) {
-		aimStick_ = {ax / len, ay / len};
+	const float aimLength = std::sqrt(ax * ax + ay * ay);
+	const float aimDeadZone = static_cast<float>(kAimDeadZone_);
+
+	if (aimLength > aimDeadZone) {
+		const float magnitude = std::clamp((aimLength - aimDeadZone) / (32767.0f - aimDeadZone), 0.0f, 1.0f);
+		aimStick_ = {(ax / aimLength) * magnitude, (ay / aimLength) * magnitude};
 		aimStickActive_ = true;
 	} else {
 		aimStick_ = {0.0f, 0.0f};

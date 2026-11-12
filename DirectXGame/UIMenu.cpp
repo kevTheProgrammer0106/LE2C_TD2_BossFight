@@ -57,10 +57,18 @@ void UIMenu::Initialize(const uint32_t* textures, size_t textureCount, KamataEng
 ///  Used in kPlay, hides default cursor for custom one
 /// </summary>
 void UIMenu::UpdateCursor() {
-	ShowCursor(false);
-	Vector2 targetPos = {worldTransform_.translation_.x, worldTransform_.translation_.y};
+	if (!cursorSprite_) {
+		return;
+	}
+
+	InputManager* input = InputManager::GetInstance();
+	const Vector2 targetPos = {static_cast<float>(input->GetMouseX()), static_cast<float>(input->GetMouseY())};
+
+	worldTransform_.translation_ = {targetPos.x, targetPos.y, 0.0f};
+	WorldTransformUpdate(worldTransform_);
 	cursorSprite_->SetPosition(targetPos);
 }
+
 
 void UIMenu::Update() {
 	// マウス座標/クリック状態はInputManagerから取得する。ここではKamataEngine::Inputへは直接触らない。

@@ -1,13 +1,12 @@
 #include "TitleScene.h"
 #include "AudioSettings.h"
-#include "InputManager.h"
-#include "MusicManager.h"
 
 using namespace KamataEngine;
 
 TitleScene::~TitleScene() { delete fade_; }
 
 void TitleScene::Initialize(bool withScreenFadeIn, bool openCredits) {
+	InputManager::GetInstance()->SetCursorLockAllowed(false);
 	openCreditsOnStart_ = openCredits;
 
 	fade_ = new Fade();
