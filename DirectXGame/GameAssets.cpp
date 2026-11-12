@@ -38,6 +38,10 @@ void GameAssets::Load() {
 		heavySabreTex = TextureManager::Load(std::filesystem::exists(texPath) ? "./" + texPath : std::string("./Resources/white1x1.png"));
 	}
 
+	// --- Boss ---
+	modelBoss.reset(Model::CreateFromOBJ("boss", true));
+	bossTex = TextureManager::Load("./Resources/boss/White1x1.png");
+
 	// --- Block: the old linkID 0 block (grass) ---
 	modelBlock.reset(Model::CreateFromOBJ("blockGrass"));
 	blockTex = TextureManager::Load("./Resources/blockGrass/blockGrass.png");

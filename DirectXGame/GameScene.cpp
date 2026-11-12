@@ -85,6 +85,10 @@ void GameScene::Initialize(StageManager* stageDataManager) {
 		SpawnPlayer(mapChipField_->GetMapChipPositionByIndex(0, mapChipField_->GetNumBlockDepth() - 1));
 	}
 
+	/*if (!boss_) {
+		SpawnBoss(mapChipField_->GetMapChipPositionByIndex(0, mapChipField_->GetNumBlockDepth()-1));
+	}*/
+
 	fade_ = std::make_unique<Fade>();
 	fade_->Initialize();
 	fade_->Start(Fade::Status::FadeIn, 1.0f);
@@ -147,6 +151,12 @@ void GameScene::GenerateChunk(uint32_t chunkX, uint32_t chunkZ) {
 					SpawnPlayer(mapChipField_->GetMapChipPositionByIndex(col, row));
 				}
 				break;
+			case MapChipType::kBoss:
+				if (!boss_) { // only one boss; extra spawn cells are ignored
+					SpawnBoss(mapChipField_->GetMapChipPositionByIndex(col, row));
+				}
+				break;
+
 			default:
 				break;
 			}
@@ -170,6 +180,15 @@ void GameScene::SpawnPlayer(const Vector3& position) {
 	cameraController_->SetTarget(player_.get());
 	cameraController_->EnableThirdPerson();
 	cameraController_->Reset();
+}
+
+void GameScene::SpawnBoss(const Vector3& position) {
+	boss_ = std::make_unique<Boss>();
+	boss_->SetMapChipField(mapChipField_.get());
+
+	PartResources partResources = {assets_.modelBoss.get(), assets_.bossTex};
+
+	boss_->Initialize(partResources, &camera_, position);
 }
 
 void GameScene::Update() {
@@ -196,6 +215,9 @@ void GameScene::Update() {
 	if (player_) {
 		player_->Update();
 	}
+	
+		boss_->Update();
+
 	cameraController_->Update();
 	gameUI_->Update(player_.get());
 }
@@ -255,6 +277,11 @@ void GameScene::Draw() {
 
 	if (player_) {
 		player_->Draw();
+	}
+
+	if ( boss_ )
+	{
+		boss_->Draw();
 	}
 
 	gameUI_->Draw();

@@ -184,6 +184,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClCompile Include="BackgroundModel.cpp" />
     <ClCompile Include="BaseMelee.cpp" />
     <ClCompile Include="BlockDetector.cpp" />
+    <ClCompile Include="Boss.cpp" />
     <ClCompile Include="CameraController.cpp" />
     <ClCompile Include="DebugCollisionDraw.cpp" />
     <ClCompile Include="DebugMenu.cpp" />
@@ -218,6 +219,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClInclude Include="BaseBehavior.h" />
     <ClInclude Include="BaseMelee.h" />
     <ClInclude Include="BlockDetector.h" />
+    <ClInclude Include="Boss.h" />
     <ClInclude Include="CameraController.h" />
     <ClInclude Include="DebugCollisionDraw.h" />
     <ClInclude Include="DebugMenu.h" />

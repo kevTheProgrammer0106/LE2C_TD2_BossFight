@@ -13,6 +13,7 @@ enum class MapChipType : uint8_t {
 	kBlank = 0,  // 0
 	kBlock = 1,  // 1
 	kPlayer = 2, // 2  player spawn (the cell itself is empty floor)
+	kBoss = 3,
 };
 
 struct MapChipDataUnit {

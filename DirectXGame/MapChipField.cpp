@@ -53,6 +53,9 @@ bool MapChipField::LoadChunkCsv(uint32_t chunkX, uint32_t chunkZ, const std::str
 			case static_cast<int>(MapChipType::kPlayer):
 				type = MapChipType::kPlayer;
 				break;
+			case static_cast<int>(MapChipType::kBoss):
+				type = MapChipType::kBoss;
+				break;
 			default:
 				break;
 			}

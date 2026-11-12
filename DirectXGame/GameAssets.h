@@ -36,6 +36,10 @@ public:
 	std::unique_ptr<KamataEngine::Model> modelHeavySabre;
 	uint32_t heavySabreTex = 0;
 
+	// --- Boss ---
+	std::unique_ptr<KamataEngine::Model> modelBoss;
+	uint32_t bossTex = 0;
+
 	// --- Block (the only tile type for now) ---
 	std::unique_ptr<KamataEngine::Model> modelBlock;
 	uint32_t blockTex = 0;

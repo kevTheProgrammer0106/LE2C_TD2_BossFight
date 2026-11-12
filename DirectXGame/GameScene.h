@@ -12,6 +12,7 @@
 #include "Global.h"
 #include "InputManager.h"
 #include "MapChipField.h"
+#include "Boss.h"
 #include "Player.h"
 
 class StageManager;
@@ -49,6 +50,7 @@ private:
 	// Debug wireframes (player / footprint / facing / attack hitbox / weapon / nearby blocks). Toggled with showCollisionDebug_.
 	void DrawCollisionDebug();
 
+	void SpawnBoss(const KamataEngine::Vector3& position);
 	StageManager* stageManager_ = nullptr;
 
 	KamataEngine::Camera camera_;
@@ -60,6 +62,7 @@ private:
 	std::vector<std::vector<bool>> chunkOccupied_; // [chunkX][chunkZ]
 
 	std::unique_ptr<Player> player_;
+	std::unique_ptr<Boss> boss_;
 	std::unique_ptr<Fade> fade_;
 	std::unique_ptr<GameUI> gameUI_;
 
