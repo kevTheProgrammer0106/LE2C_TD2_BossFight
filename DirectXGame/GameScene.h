@@ -7,10 +7,11 @@
 #include "CameraController.h"
 #include "Fade.h"
 #include "GameAssets.h"
+#include "GameUI.h"
 #include "Global.h"
+#include "InputManager.h"
 #include "MapChipField.h"
 #include "Player.h"
-#include "InputManager.h"
 
 class StageManager;
 
@@ -53,6 +54,7 @@ private:
 
 	std::unique_ptr<Player> player_;
 	std::unique_ptr<Fade> fade_;
+	std::unique_ptr<GameUI> gameUI_;
 
 	bool finished_ = false;
 	bool returnToMenuRequested_ = false;

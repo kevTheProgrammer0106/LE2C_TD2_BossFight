@@ -190,6 +190,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClCompile Include="GameAssets.cpp" />
     <ClCompile Include="GameScene.cpp" />
     <ClCompile Include="GameSettings.cpp" />
+    <ClCompile Include="GameUI.cpp" />
     <ClCompile Include="Global.cpp" />
     <ClCompile Include="GlobalVariables.cpp" />
     <ClCompile Include="InputManager.cpp" />
@@ -220,6 +221,7 @@ xcopy "$(ProjectDir)..\External\KamataEngine\shaders" "$(ProjectDir)Resources\En
     <ClInclude Include="GameAssets.h" />
     <ClInclude Include="GameScene.h" />
     <ClInclude Include="GameSettings.h" />
+    <ClInclude Include="GameUI.h" />
     <ClInclude Include="Global.h" />
     <ClInclude Include="GlobalVariables.h" />
     <ClInclude Include="InputManager.h" />

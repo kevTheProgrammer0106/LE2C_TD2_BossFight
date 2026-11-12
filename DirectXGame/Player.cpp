@@ -1,8 +1,8 @@
 #define NOMINMAX
 #include "Player.h"
+#include "InputManager.h"
 #include "MapChipField.h"
 #include "PlayerBehavior.h"
-#include "InputManager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -24,7 +24,8 @@ void Player::Initialize(const std::array<PartResources, static_cast<size_t>(Part
 	}
 	camera_ = camera;
 	velocity_ = {};
-
+	hp_ = kMaxHP;
+	stamina_ = kMaxStamina;
 	worldTransform_.Initialize();
 	worldTransform_.scale_ = {1.0f, 1.0f, 1.0f};
 	worldTransform_.rotation_.y = 0.0f; // facing +Z (up the screen)
@@ -127,14 +128,16 @@ void Player::UpdateBodyParts() {
 	parts_[body].transform.scale_ = worldTransform_.scale_;
 	WorldTransformUpdate(parts_[body].transform);
 
-	const Matrix4x4 bodyRot = Multiply(MakeRotateXMatrix(parts_[body].transform.rotation_.x), Multiply(MakeRotateYMatrix(parts_[body].transform.rotation_.y), MakeRotateZMatrix(parts_[body].transform.rotation_.z)));
+	const Matrix4x4 bodyRot =
+	    Multiply(MakeRotateXMatrix(parts_[body].transform.rotation_.x), Multiply(MakeRotateYMatrix(parts_[body].transform.rotation_.y), MakeRotateZMatrix(parts_[body].transform.rotation_.z)));
 	parts_[head].transform.translation_ = parts_[body].transform.translation_ + TransformNormal(headOffset_.translation, bodyRot);
 	parts_[head].transform.rotation_ = parts_[body].transform.rotation_ + headOffset_.rotation;
 	parts_[head].transform.scale_ = {
 	    parts_[body].transform.scale_.x * headOffset_.scale.x, parts_[body].transform.scale_.y * headOffset_.scale.y, parts_[body].transform.scale_.z * headOffset_.scale.z};
 	WorldTransformUpdate(parts_[head].transform);
 
-	const Matrix4x4 headRot = Multiply(MakeRotateXMatrix(parts_[head].transform.rotation_.x), Multiply(MakeRotateYMatrix(parts_[head].transform.rotation_.y), MakeRotateZMatrix(parts_[head].transform.rotation_.z)));
+	const Matrix4x4 headRot =
+	    Multiply(MakeRotateXMatrix(parts_[head].transform.rotation_.x), Multiply(MakeRotateYMatrix(parts_[head].transform.rotation_.y), MakeRotateZMatrix(parts_[head].transform.rotation_.z)));
 	parts_[hat].transform.translation_ = parts_[head].transform.translation_ + TransformNormal(hatOffset_.translation, headRot);
 	parts_[hat].transform.rotation_ = parts_[head].transform.rotation_ + hatOffset_.rotation;
 	parts_[hat].transform.scale_ = {parts_[head].transform.scale_.x * hatOffset_.scale.x, parts_[head].transform.scale_.y * hatOffset_.scale.y, parts_[head].transform.scale_.z * hatOffset_.scale.z};

@@ -27,6 +27,10 @@ public:
 	void ResetVelocity() { velocity_ = {}; }
 	AABB GetAABB() const;
 
+	// UI
+	float GetHPRatio() const { return hp_ / kMaxHP; }
+	float GetStaminaRatio() const { return stamina_ / kMaxStamina; }
+
 private:
 	void Move();
 	void MapChipCollisionUpdate();
@@ -51,16 +55,20 @@ private:
 	static inline float kWidth = 0.8f; // X
 	static inline float kDepth = 0.8f; // Z
 	static inline float kHeight = 1.6f;
+	static inline float kMaxHP = 100.0f;
+	static inline float kMaxStamina = 100.0f;
+	float hp_ = kMaxHP;
+	float stamina_ = kMaxStamina;
 
 	// same part layout as the side-view player (the model is centred on worldTransform_)
 	static inline SRTOffset headOffset_ = {
 	    {1.0f,   1.0f,  1.0f},
-	    {0.0f,   0.0f,  0.0f},
-	    {-0.05f, 0.72f, 0.0f}
+        {0.0f,   0.0f,  0.0f},
+        {-0.05f, 0.72f, 0.0f}
     };
 	static inline SRTOffset hatOffset_ = {
-	    {1.0f, 1.0f, 1.0f },
-	    {0.0f, 0.0f, 0.0f },
-	    {0.0f, 0.1f, -0.11f}
+	    {1.0f, 1.0f, 1.0f  },
+        {0.0f, 0.0f, 0.0f  },
+        {0.0f, 0.1f, -0.11f}
     };
 };

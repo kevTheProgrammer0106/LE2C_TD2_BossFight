@@ -63,6 +63,9 @@ void GameScene::Initialize(StageManager* stageDataManager) {
 	fade_ = std::make_unique<Fade>();
 	fade_->Initialize();
 	fade_->Start(Fade::Status::FadeIn, 1.0f);
+
+	gameUI_ = std::make_unique<GameUI>();
+	gameUI_->Initialize();
 }
 
 void GameScene::LoadStageChunks() {
@@ -153,7 +156,6 @@ void GameScene::Update() {
 	}
 	CameraController::ApplyGlobalVariables();
 
-
 	// カメラの向きを先に更新
 	cameraController_->UpdateLook();
 
@@ -161,6 +163,7 @@ void GameScene::Update() {
 		player_->Update();
 	}
 	cameraController_->Update();
+	gameUI_->Update(player_.get());
 }
 
 void GameScene::Draw() {
@@ -177,5 +180,6 @@ void GameScene::Draw() {
 		player_->Draw();
 	}
 
+	gameUI_->Draw();
 	fade_->Draw();
 }
