@@ -88,6 +88,9 @@ void GameScene::Initialize(StageManager* stageDataManager) {
 	fade_ = std::make_unique<Fade>();
 	fade_->Initialize();
 	fade_->Start(Fade::Status::FadeIn, 1.0f);
+
+	gameUI_ = std::make_unique<GameUI>();
+	gameUI_->Initialize();
 }
 
 void GameScene::LoadStageChunks() {
@@ -194,6 +197,7 @@ void GameScene::Update() {
 		player_->Update();
 	}
 	cameraController_->Update();
+	gameUI_->Update(player_.get());
 }
 
 #ifdef _DEBUG
@@ -253,6 +257,7 @@ void GameScene::Draw() {
 		player_->Draw();
 	}
 
+	gameUI_->Draw();
 	DrawCollisionDebug();
 
 	fade_->Draw();

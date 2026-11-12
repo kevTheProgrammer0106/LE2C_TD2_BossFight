@@ -76,6 +76,10 @@ public:
 	bool IsRolling() const { return moveMode_ == MoveMode::kRoll; }
 	bool IsYawLocked() const { return yawLocked_; }
 
+	// UI
+	float GetHPRatio() const { return hp_ / kMaxHP; }
+	float GetStaminaRatio() const { return stamina_ / kMaxStamina; }
+
 private:
 	friend class PlayerBehavior;
 	friend class DebugMenu;
@@ -141,6 +145,10 @@ private:
 	static inline float kWidth = 0.8f; // X方向の幅。
 	static inline float kDepth = 0.8f; // Z方向の奥行き。
 	static inline float kHeight = 1.6f;
+	static inline float kMaxHP = 100.0f;
+	static inline float kMaxStamina = 100.0f;
+	float hp_ = kMaxHP;
+	float stamina_ = kMaxStamina;
 
 	// ダッシュ／ロールの調整値（速度は60fps時の1フレームあたりの移動量）。
 	static inline float kDashSpeed = 0.45f;

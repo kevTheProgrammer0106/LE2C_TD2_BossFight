@@ -8,6 +8,7 @@
 #include "DebugMenu.h"
 #include "Fade.h"
 #include "GameAssets.h"
+#include "GameUI.h"
 #include "Global.h"
 #include "InputManager.h"
 #include "MapChipField.h"
@@ -60,6 +61,7 @@ private:
 
 	std::unique_ptr<Player> player_;
 	std::unique_ptr<Fade> fade_;
+	std::unique_ptr<GameUI> gameUI_;
 
 	DebugMenu debugMenu_;
 	bool showCollisionDebug_ = false;

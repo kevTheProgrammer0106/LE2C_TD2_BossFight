@@ -7,7 +7,6 @@
 #include "PlayerBehavior.h"
 #include "WeaponHeavySabre.h"
 
-
 #include <algorithm>
 #include <cmath>
 #include <numbers>
@@ -162,6 +161,8 @@ void Player::Initialize(const std::array<PartResources, static_cast<size_t>(Part
 	yawReleasing_ = false;
 	yawDetached_ = false;
 
+	hp_ = kMaxHP;
+	stamina_ = kMaxStamina;
 	worldTransform_.Initialize();
 	worldTransform_.scale_ = {1.0f, 1.0f, 1.0f};
 	worldTransform_.rotation_.y = facingYaw_;
