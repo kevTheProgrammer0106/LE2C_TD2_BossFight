@@ -12,21 +12,21 @@ constexpr SHORT kDead = XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE;
 
 bool Btn(const XINPUT_STATE& s, WORD b) { return (s.Gamepad.wButtons & b) != 0; }
 
-// Left stick or D-Pad
+// 左スティックまたは十字キーによる左右入力。
 bool PadLeft(const XINPUT_STATE& s) { return s.Gamepad.sThumbLX < -kDead || Btn(s, XINPUT_GAMEPAD_DPAD_LEFT); }
 bool PadRight(const XINPUT_STATE& s) { return s.Gamepad.sThumbLX > kDead || Btn(s, XINPUT_GAMEPAD_DPAD_RIGHT); }
 
-// Menu navigation: either stick or D-Pad
+// メニュー操作：左右どちらかのスティック、または十字キー。
 bool MenuUp(const XINPUT_STATE& s) { return s.Gamepad.sThumbLY > kDead || s.Gamepad.sThumbRY > kDead || Btn(s, XINPUT_GAMEPAD_DPAD_UP); }
 bool MenuDown(const XINPUT_STATE& s) { return s.Gamepad.sThumbLY < -kDead || s.Gamepad.sThumbRY < -kDead || Btn(s, XINPUT_GAMEPAD_DPAD_DOWN); }
 bool MenuLeft(const XINPUT_STATE& s) { return PadLeft(s) || s.Gamepad.sThumbRX < -kDead; }
 bool MenuRight(const XINPUT_STATE& s) { return PadRight(s) || s.Gamepad.sThumbRX > kDead; }
 
-// Gameplay down (left stick / D-Pad only, so the right/aim stick never triggers drop-through)
+// ゲームプレイ中の下入力。右スティックはエイム用なので、左スティックと十字キーのみを使う。
 bool PadDown(const XINPUT_STATE& s) { return s.Gamepad.sThumbLY < -kDead || Btn(s, XINPUT_GAMEPAD_DPAD_DOWN); }
 bool PadUp(const XINPUT_STATE& s) { return s.Gamepad.sThumbLY > kDead || Btn(s, XINPUT_GAMEPAD_DPAD_UP); }
 
-// スティックのデッドゾーンを除去して-1.0～1.0に変換
+// スティックのデッドゾーンを除去して-1.0～1.0に変換する。
 float NormalizeStickAxis(SHORT value, SHORT deadZone) {
 	const float magnitude = std::abs(static_cast<float>(value));
 	const float dead = static_cast<float>(deadZone);
@@ -39,7 +39,7 @@ float NormalizeStickAxis(SHORT value, SHORT deadZone) {
 
 	return std::copysign(normalized, static_cast<float>(value));
 }
-} // namespace
+} // 無名名前空間
 
 InputManager::~InputManager() {
 	ReleaseMouseCapture();
@@ -51,7 +51,7 @@ InputManager* InputManager::GetInstance() {
 	return &instance;
 }
 
-// ShowCursorの表示カウンターを管理し、指定した表示状態に合わせる
+// ShowCursorの表示カウンターを調整し、指定した表示状態に合わせる。
 void InputManager::SetSystemCursorVisible(bool visible) {
 	if (systemCursorVisible_ == visible) {
 		return;
@@ -71,7 +71,7 @@ void InputManager::SetSystemCursorVisible(bool visible) {
 	systemCursorVisible_ = visible;
 }
 
-// カーソルをゲーム画面中央に固定して相対移動量を取得する
+// カーソルをゲーム画面中央に固定し、中央からの相対移動量を取得する。
 void InputManager::UpdateMouseCapture(bool lockCursor) {
 	mouseDelta_ = {};
 
@@ -86,7 +86,7 @@ void InputManager::UpdateMouseCapture(bool lockCursor) {
 		return;
 	}
 
-	// 別のプロセスが前面にある場合はキャプチャを解除する
+	// 別プロセスのウィンドウが前面にある場合は、マウスのキャプチャを解除する。
 	DWORD processId = 0;
 	GetWindowThreadProcessId(window, &processId);
 	if (processId != GetCurrentProcessId()) {
@@ -116,7 +116,7 @@ void InputManager::UpdateMouseCapture(bool lockCursor) {
 
 	const RECT screenRect = {topLeft.x, topLeft.y, bottomRight.x, bottomRight.y};
 
-	// キャプチャ開始時はカーソルを中央へ移動し、最初のフレームのdeltaを0にする
+	// キャプチャ開始時にカーソルを中央へ移動し、最初のフレームの移動量を0にする。
 	if (!mouseCaptured_ || capturedWindow_ != reinterpret_cast<void*>(window)) {
 		ReleaseMouseCapture();
 		mouseCaptured_ = true;
@@ -130,16 +130,16 @@ void InputManager::UpdateMouseCapture(bool lockCursor) {
 		return;
 	}
 
-	// ウィンドウの移動・リサイズ後もクライアント領域にカーソルを制限する
+	// ウィンドウの移動やリサイズ後も、クライアント領域内にカーソルを制限する。
 	ClipCursor(&screenRect);
 
 	POINT currentCursor{};
 	if (GetCursorPos(&currentCursor)) {
-		// 前フレームに中央へ戻しているため、中央との差がマウス移動量になる
+		// 前フレームで中央へ戻しているため、現在位置と中央の差がマウス移動量になる。
 		mouseDelta_ = {static_cast<float>(currentCursor.x - centerScreen.x), static_cast<float>(currentCursor.y - centerScreen.y)};
 	}
 
-	// 入力を取得した後に中央へ戻す
+	// 入力を取得してからカーソルを中央へ戻す。
 	SetCursorPos(centerScreen.x, centerScreen.y);
 
 	mouseMovement_ = {static_cast<float>(centerClient.x), static_cast<float>(centerClient.y)};
@@ -147,7 +147,7 @@ void InputManager::UpdateMouseCapture(bool lockCursor) {
 	mouseY_ = centerClient.y;
 }
 
-// マウスキャプチャと画面端の制限を解除する
+// マウスのキャプチャと画面端の制限を解除する。
 void InputManager::ReleaseMouseCapture() {
 	if (mouseCaptured_) {
 		ClipCursor(nullptr);
@@ -159,7 +159,7 @@ void InputManager::ReleaseMouseCapture() {
 }
 
 void InputManager::SetCursorLockAllowed(bool allowed) {
-	// 状態が変わったときだけモードを切り替える
+	// モードの状態が変化した場合のみ切り替え処理を行う。
 	if (cursorModeInitialized_ && cursorLockAllowed_ == allowed) {
 		return;
 	}
@@ -169,7 +169,7 @@ void InputManager::SetCursorLockAllowed(bool allowed) {
 	lockCursor_ = allowed;
 	cursorToggleCooldownFrames_ = 0;
 
-	// UIではOSカーソルを隠して自由移動にし、Gameplayでは初期ロックする
+	// UIではOSカーソルを隠して自由移動にし、ゲームプレイでは初期状態をロックにする。
 	ReleaseMouseCapture();
 	SetSystemCursorVisible(false);
 }
@@ -177,13 +177,13 @@ void InputManager::SetCursorLockAllowed(bool allowed) {
 void InputManager::Update() {
 	Input* input = Input::GetInstance();
 
-	// --- Controller snapshot (we keep our own previous frame so edges don't depend on the engine) ---
+	// --- コントローラー状態の取得（押した瞬間の判定をエンジンに依存させないよう前フレームも保持） ---
 	previousControllerState_ = controllerState_;
 	XINPUT_STATE polled{};
 	if (input->GetJoystickState(0, polled)) {
 		controllerState_ = polled;
 	} else {
-		controllerState_ = XINPUT_STATE{}; // disconnected: everything released
+		controllerState_ = XINPUT_STATE{}; // 未接続の場合はすべての入力が離された状態にする。
 	}
 	const XINPUT_STATE& cur = controllerState_;
 	const XINPUT_STATE& prev = previousControllerState_;
@@ -194,17 +194,17 @@ void InputManager::Update() {
 	const bool ltNow = cur.Gamepad.bLeftTrigger > kTriggerThreshold_;
 	const bool ltPrev = prev.Gamepad.bLeftTrigger > kTriggerThreshold_;
 
-	// --- Movement ---
+	// --- 移動 ---
 	moveLeftHeld_ = input->PushKey(DIK_A) || input->PushKey(DIK_LEFT) || PadLeft(cur);
 	moveRightHeld_ = input->PushKey(DIK_D) || input->PushKey(DIK_RIGHT) || PadRight(cur);
 	moveLeftTriggered_ = input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT) || (PadLeft(cur) && !PadLeft(prev));
 	moveRightTriggered_ = input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT) || (PadRight(cur) && !PadRight(prev));
 
-	// --- Jump ---
+	// --- ジャンプ ---
 	jumpHeld_ = input->PushKey(DIK_SPACE) || Btn(cur, XINPUT_GAMEPAD_A);
 	jumpTriggered_ = input->TriggerKey(DIK_SPACE) || padEdge(XINPUT_GAMEPAD_A);
 
-	// --- Actions ---
+	// --- アクション ---
 	weaponSwitchTriggered_ = input->TriggerKey(DIK_Q) || padEdge(XINPUT_GAMEPAD_Y);
 	pauseTriggered_ = input->TriggerKey(DIK_ESCAPE) || padEdge(XINPUT_GAMEPAD_START);
 	interactTriggered_ = input->TriggerKey(DIK_F) || padEdge(XINPUT_GAMEPAD_X);
@@ -212,7 +212,7 @@ void InputManager::Update() {
 	attackDownHeld_ = input->PushKey(DIK_S) || PadDown(cur);
 	dashTriggered_ = input->TriggerKey(DIK_LSHIFT) || input->TriggerKey(DIK_RSHIFT) || padEdge(XINPUT_GAMEPAD_B);
 
-	// --- Mouse ---
+	// --- マウス ---
 	mouseMovement_ = input->GetMousePosition();
 	mouseX_ = static_cast<int>(mouseMovement_.x);
 	mouseY_ = static_cast<int>(mouseMovement_.y);
@@ -222,14 +222,14 @@ void InputManager::Update() {
 	secondaryMouseHeld_ = input->IsPressMouse(1);
 	secondaryMouseTriggered_ = input->IsTriggerMouse(1);
 
-	// --- Mouse cursor mode ---
+	// --- マウスカーソルのモード ---
 	if (cursorLockAllowed_) {
-		// クールダウンを毎フレーム減らし、Altの連続切り替えを防ぐ
+		// クールダウンを毎フレーム減らし、Altによる連続切り替えを防ぐ。
 		if (cursorToggleCooldownFrames_ > 0) {
 			--cursorToggleCooldownFrames_;
 		}
 
-		// 押した瞬間だけ判定し、長押し中に毎フレーム反転しないようにする
+		// 押した瞬間だけ判定し、長押し中に毎フレームモードが反転しないようにする。
 		const bool altTriggered = input->TriggerKey(DIK_LALT) || input->TriggerKey(DIK_RALT);
 		if (altTriggered && cursorToggleCooldownFrames_ == 0) {
 			lockCursor_ = !lockCursor_;
@@ -238,17 +238,39 @@ void InputManager::Update() {
 
 		UpdateMouseCapture(lockCursor_);
 
-		// ロックに失敗して非アクティブな場合はカーソルを表示する
+		// ロックできていない場合（非アクティブ時など）はカーソルを表示する。
 		SetSystemCursorVisible(!lockCursor_ || !mouseCaptured_);
 	} else {
-		// UI中はAlt切り替えを禁止。OSカーソルは隠し、UIMenuのカーソルを表示する
+		// UI中はAltによる切り替えを禁止する。OSカーソルを隠し、UIMenu独自のカーソルを表示する。
 		lockCursor_ = false;
 		cursorToggleCooldownFrames_ = 0;
 		UpdateMouseCapture(false);
 		SetSystemCursorVisible(false);
 	}
 
-	// --- TPS movement axis ---
+	// --- フリーカーソル中のカメラ旋回 ---
+	if (IsFreeCursorMode()) {
+		if (IsFreeOrbiting()) {
+			if (freeOrbitMouseInitialized_) {
+				// 前フレームのマウス座標との差分を、カメラ旋回用の移動量として扱う。
+				mouseDelta_ = {mouseMovement_.x - previousFreeOrbitMousePosition_.x, mouseMovement_.y - previousFreeOrbitMousePosition_.y};
+			} else {
+				// 旋回を開始した最初のフレームは移動量を0にして、視点が急に飛ぶのを防ぐ。
+				mouseDelta_ = {};
+				freeOrbitMouseInitialized_ = true;
+			}
+			previousFreeOrbitMousePosition_ = mouseMovement_;
+		} else {
+			// 右クリックを離したら差分計測をリセットする。
+			mouseDelta_ = {};
+			freeOrbitMouseInitialized_ = false;
+		}
+	} else {
+		// ロック中はUpdateMouseCapture()が取得した相対移動量をそのまま使う。
+		freeOrbitMouseInitialized_ = false;
+	}
+
+	// --- TPS用の移動軸 ---
 	const bool leftKey = input->PushKey(DIK_A) || input->PushKey(DIK_LEFT);
 	const bool rightKey = input->PushKey(DIK_D) || input->PushKey(DIK_RIGHT);
 	const bool forwardKey = input->PushKey(DIK_W);
@@ -262,7 +284,7 @@ void InputManager::Update() {
 	float x = 0.0f;
 	float y = 0.0f;
 
-	// キーボード、D-Pad、左スティックの順に入力を取得
+	// キーボード、十字キー、左スティックの優先順で入力を取得する。
 	if (leftKey || rightKey) {
 		x = static_cast<float>(rightKey) - static_cast<float>(leftKey);
 	} else if (leftDpad || rightDpad) {
@@ -279,7 +301,7 @@ void InputManager::Update() {
 		y = NormalizeStickAxis(cur.Gamepad.sThumbLY, kStickDeadZone_);
 	}
 
-	// 斜め移動を正規化
+	// 斜め移動の入力ベクトルを正規化する。
 	const float moveLength = std::sqrt(x * x + y * y);
 	if (moveLength > 1.0f) {
 		x /= moveLength;
@@ -287,19 +309,20 @@ void InputManager::Update() {
 	}
 	moveAxis_ = {x, y};
 
-	// --- Combined mouse + pad ---
+	// --- マウス入力とパッド入力の統合 ---
 	primaryTriggered_ = primaryMouseTriggered_ || (rtNow && !rtPrev);
 	primaryHeld_ = primaryMouseHeld_ || rtNow;
-	blockHeld_ = secondaryMouseHeld_ || ltNow || Btn(cur, XINPUT_GAMEPAD_LEFT_SHOULDER);
-	secondaryTriggered_ = secondaryMouseTriggered_ || (ltNow && !ltPrev) || padEdge(XINPUT_GAMEPAD_LEFT_SHOULDER);
+	const bool freeOrbiting = IsFreeOrbiting();
+	blockHeld_ = (!freeOrbiting && secondaryMouseHeld_) || ltNow || Btn(cur, XINPUT_GAMEPAD_LEFT_SHOULDER);
+	secondaryTriggered_ = (!freeOrbiting && secondaryMouseTriggered_) || (ltNow && !ltPrev) || padEdge(XINPUT_GAMEPAD_LEFT_SHOULDER);
 
-	// --- Menu navigation edges ---
+	// --- メニュー操作の押した瞬間の判定 ---
 	menuUpTriggered_ = input->TriggerKey(DIK_W) || input->TriggerKey(DIK_UP) || (MenuUp(cur) && !MenuUp(prev));
 	menuDownTriggered_ = input->TriggerKey(DIK_S) || input->TriggerKey(DIK_DOWN) || (MenuDown(cur) && !MenuDown(prev));
 	menuLeftTriggered_ = input->TriggerKey(DIK_A) || input->TriggerKey(DIK_LEFT) || (MenuLeft(cur) && !MenuLeft(prev));
 	menuRightTriggered_ = input->TriggerKey(DIK_D) || input->TriggerKey(DIK_RIGHT) || (MenuRight(cur) && !MenuRight(prev));
 
-	// --- Right stick aim ---
+	// --- 右スティックによるエイム ---
 	const float ax = static_cast<float>(cur.Gamepad.sThumbRX);
 	const float ay = static_cast<float>(cur.Gamepad.sThumbRY);
 	const float aimLength = std::sqrt(ax * ax + ay * ay);

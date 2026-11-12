@@ -1,14 +1,32 @@
 #define NOMINMAX
 #include "GameScene.h"
+#include "BaseMelee.h"
+#include "DebugCollisionDraw.h"
+#include "PlayerBehavior.h"
 #include "StageManager.h"
+#include "WeaponHeavySabre.h"
 #include <Windows.h>
 #include <algorithm>
+#include <cmath>
 #include <string>
 
 using namespace KamataEngine;
 
 namespace {
 void Log(const std::string& message) { OutputDebugStringA(("[GameScene] " + message + "\n").c_str()); }
+
+// Everything the sabre / player combat reads from GlobalVariables. Register is idempotent (AddItem only adds missing keys),
+// so it is safe to call on every scene start; Apply copies the (possibly debug-edited) values into the statics.
+void RegisterGameplayGlobalVariables() {
+	BaseMelee::RegisterGlobalVariables();
+	WeaponHeavySabre::RegisterGlobalVariables();
+	PlayerBehavior::RegisterGlobalVariables();
+}
+void ApplyGameplayGlobalVariables() {
+	BaseMelee::ApplyGlobalVariables();
+	WeaponHeavySabre::ApplyGlobalVariables();
+	PlayerBehavior::ApplyGlobalVariables();
+}
 } // namespace
 
 GameScene::~GameScene() = default;
@@ -20,8 +38,15 @@ void GameScene::Initialize(StageManager* stageDataManager) {
 	CameraController::RegisterGlobalVariables();
 	CameraController::ApplyGlobalVariables();
 
+	RegisterGameplayGlobalVariables();
+	ApplyGameplayGlobalVariables();
+	WeaponHeavySabre::LoadSounds();
+
 	camera_.farZ = 10000.0f;
 	camera_.Initialize();
+
+	// the debug wireframes (PrimitiveDrawer lines) are drawn with this camera
+	PrimitiveDrawer::GetInstance()->SetCamera(&camera_);
 
 	assets_.Load();
 
@@ -136,6 +161,9 @@ void GameScene::SpawnPlayer(const Vector3& position) {
 
 	player_->Initialize(parts, &camera_, position);
 
+	// the heavy sabre (model is null when the OBJ is missing: it still swings and has hitboxes, it is just not drawn)
+	player_->EquipHeavySabre(assets_.modelHeavySabre.get(), assets_.heavySabreTex);
+
 	cameraController_->SetTarget(player_.get());
 	cameraController_->EnableThirdPerson();
 	cameraController_->Reset();
@@ -146,13 +174,18 @@ void GameScene::Update() {
 	if (fade_->status_ == Fade::Status::FadeIn && fade_->IsFinished()) {
 		fade_->Stop();
 	}
+
+#ifdef _DEBUG
+	debugMenu_.Draw(this); // hotkeys + ImGui window (F1 reload, F3 window, F4 collision boxes)
+#endif
+
 	// Escape goes back to the title menu (main.cpp's switch handles the rest)
 	if (Input::GetInstance()->TriggerKey(DIK_ESCAPE)) {
 		returnToMenuRequested_ = true;
 		return;
 	}
 	CameraController::ApplyGlobalVariables();
-
+	ApplyGameplayGlobalVariables();
 
 	// カメラの向きを先に更新
 	cameraController_->UpdateLook();
@@ -162,6 +195,49 @@ void GameScene::Update() {
 	}
 	cameraController_->Update();
 }
+
+#ifdef _DEBUG
+void GameScene::DrawCollisionDebug() {
+	if (!showCollisionDebug_ || !player_) {
+		return;
+	}
+	using namespace DebugDraw;
+
+	const Vector3 p = player_->GetWorldPosition();
+
+	Box(player_->GetAABB(), DebugDraw::Color::kPlayer);
+	Box(player_->GetFootprintAABB(), DebugDraw::Color::kBlock); // what the block collision actually uses
+
+	// facing: this arrow is where attacks go (stays put while dashing / attacking, eases back during a roll)
+	const Vector3 forward = player_->GetForward();
+	Arrow({p.x, p.y, p.z}, {p.x + forward.x * 1.5f, p.y, p.z + forward.z * 1.5f}, DebugDraw::Color::kPlayer);
+
+	AABB hit{};
+	if (player_->GetAttackHitbox(hit)) {
+		Box(hit, DebugDraw::Color::kAttack);
+	}
+	if (WeaponHeavySabre* sabre = player_->GetHeavySabre()) {
+		Box(sabre->GetAABB(), DebugDraw::Color::kObject);
+	}
+
+	// blocks close to the player only: every block would blow the PrimitiveDrawer line budget
+	constexpr float kRange = 4.5f;
+	constexpr int kMaxBlocks = 120;
+	int drawn = 0;
+	for (const auto& block : blocks_) {
+		if (drawn >= kMaxBlocks) {
+			break;
+		}
+		const Vector3& t = block->translation_;
+		if (std::abs(t.x - p.x) <= kRange && std::abs(t.z - p.z) <= kRange) {
+			BoxAt(t, 0.5f, 0.5f, 0.5f, DebugDraw::Color::kBlock);
+			++drawn;
+		}
+	}
+}
+#else
+void GameScene::DrawCollisionDebug() {}
+#endif
 
 void GameScene::Draw() {
 	if (!blocks_.empty()) {
@@ -176,6 +252,8 @@ void GameScene::Draw() {
 	if (player_) {
 		player_->Draw();
 	}
+
+	DrawCollisionDebug();
 
 	fade_->Draw();
 }

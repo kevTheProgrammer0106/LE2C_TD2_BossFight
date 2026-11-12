@@ -7,7 +7,7 @@
 #include <memory>
 
 /// Models / textures used by the menu scenes and the top-down gameplay scene.
-/// (Enemies, weapons, effects, HUD, audio and the other tile types were not ported.)
+/// (Enemies, other weapons, effects, HUD, audio and the other tile types were not ported.)
 class GameAssets {
 public:
 	void Load();
@@ -31,6 +31,10 @@ public:
 	uint32_t playerBodyTex = 0;
 	uint32_t playerHeadTex = 0;
 	uint32_t playerHatTex = 0;
+
+	// --- Heavy sabre (null when the OBJ is missing: the weapon still works, it just isn't drawn) ---
+	std::unique_ptr<KamataEngine::Model> modelHeavySabre;
+	uint32_t heavySabreTex = 0;
 
 	// --- Block (the only tile type for now) ---
 	std::unique_ptr<KamataEngine::Model> modelBlock;

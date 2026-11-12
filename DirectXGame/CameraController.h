@@ -71,10 +71,10 @@ private:
 	bool needsSnap_ = true;
 
 	// プレイヤー基準のカメラ位置と回転のオフセット
-	static inline KamataEngine::Vector3 targetOffset_ = {0.0f, 3.0f, -8.0f};
-	static inline KamataEngine::Vector3 rotationOffset_ = {0.3f, 0.0f, 0.0f};
+	static inline KamataEngine::Vector3 targetOffset_ = {0.0f, 5.0f, -10.0f};
+	static inline KamataEngine::Vector3 rotationOffset_ = {0.314f, 0.0f, 0.0f};
 
-	static inline float kInterpolationRate = 0.1f;
+	static inline float kInterpolationRate = 0.25f;
 	float currentInterpolation_ = 0.1f;
 	static inline float kBoostInterpolationRate = 0.4f; // follow rate while dashing / rolling
 };

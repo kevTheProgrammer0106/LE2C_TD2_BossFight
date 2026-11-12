@@ -7,31 +7,32 @@
 #include <Xinput.h>
 
 /// <summary>
-/// 実際の入力を扱う唯一のクラス (キーボード + マウス + XInputコントローラー)。
-/// KamataEngine::Inputへの直接アクセスはここに集約し、Player/敵/UIMenuなど他のシステムは
-/// 全てこのクラス経由で入力状態を問い合わせる。
-/// 毎フレーム先頭で1回だけUpdate()を呼び、そのフレーム中の問い合わせは全てキャッシュされた値を返す。
+/// 実際の入力を扱う唯一のクラス（キーボード・マウス・XInputコントローラー）。
+/// KamataEngine::Inputへの直接アクセスをこのクラスに集約し、Player／敵／UIMenuなどの各システムは
+/// このクラス経由で入力状態を取得する。
+/// 毎フレームの先頭でUpdate()を1回だけ呼び、そのフレーム中の問い合わせにはキャッシュした値を返す。
 ///
-/// 既存API(IsMoveLeftHeld, IsJumpTriggered, IsPrimaryTriggered, IsBlockHeld ...)は
-/// 全てコントローラー入力も含む。ゲームプレイ側はこれらを呼ぶだけでパッド対応になる。
+/// 既存API（IsMoveLeftHeld、IsJumpTriggered、IsPrimaryTriggered、IsBlockHeldなど）は
+/// コントローラー入力にも対応している。ゲームプレイ側はこれらのAPIを呼ぶだけでパッド入力を扱える。
 ///
-/// ---- Default bindings ----
-///  Move            : A / D / Left / Right      | Left stick / D-Pad
-///  Jump            : Space                     | A
-///  Attack / Fire   : Mouse Left                | RT
-///  Block           : Mouse Right               | LT / LB
-///  Weapon switch   : Q                         | Y
-///  Interact        : F                         | X
-///  Down attack / drop through : S              | Left stick down / D-Pad down
-///  Pause           : Esc                       | Start
-///  Aim             : Mouse position            | Right stick
-///  Menu up/down    : W,S / Up,Down             | D-Pad / either stick
-///  Menu confirm    : Space                     | A   (mouse click handled by UIMenu AABB)
+/// ---- 標準ボタン割り当て ----
+///  移動              ：A / D / 左 / 右             | 左スティック / 十字キー
+///  ジャンプ          ：Space                       | Aボタン
+///  攻撃／射撃        ：マウス左                     | RT
+///  ガード            ：マウス右                     | LT / LB
+///  武器切り替え      ：Q                           | Yボタン
+///  インタラクト      ：F                           | Xボタン
+///  下攻撃／すり抜け  ：S                           | 左スティック下 / 十字キー下
+///  ポーズ            ：Esc                         | Start
+///  エイム            ：マウス座標                   | 右スティック
+///  メニュー上下      ：W,S / 上,下                 | 十字キー / 左右いずれかのスティック
+///  メニュー決定      ：Space                       | Aボタン（マウスクリックはUIMenuのAABBで判定）
 ///
-/// TPS cursor behavior:
-///  - Gameplay locked: cursor hidden and recentered; mouse delta rotates the camera.
-///  - Gameplay free: Alt toggles to a visible, freely moving system cursor.
-///  - UI: system cursor hidden but not locked; UIMenu draws its own cursor sprite.
+/// TPSのカーソル操作：
+///  ・ゲームプレイ中のロック状態：カーソルを非表示にして画面中央へ固定し、マウス移動量でカメラを回す。
+///  ・ゲームプレイ中のフリー状態：AltでOSカーソルを表示し、自由に移動できるようにする。
+///  ・フリー状態で右クリックを押している間：マウス移動量をカメラ旋回用として取得する。
+///  ・UI操作中：OSカーソルは非表示・固定なし。UIMenu側で独自のカーソルスプライトを描画する。
 /// </summary>
 class InputManager {
 public:
@@ -42,46 +43,46 @@ public:
 	// --- 移動 ---
 	bool IsMoveLeftHeld() const { return moveLeftHeld_; }
 	bool IsMoveRightHeld() const { return moveRightHeld_; }
-	// -1.0 / 0.0 / 1.0 (左右同時押しは0)
+	// -1.0 / 0.0 / 1.0（左右同時押しの場合は0）。
 	float GetMoveAxisX() const;
 
-	// TPS用の移動軸。x=右+, y=前+
+	// TPS用の移動軸。xは右が正、yは前が正。
 	KamataEngine::Vector2 GetMoveAxis() const { return moveAxis_; }
 
-	// 旧名(エイリアス)
+	// 旧名称（互換用エイリアス）。
 	bool PushLeftKey() const { return moveLeftHeld_; }
 	bool PushRightKey() const { return moveRightHeld_; }
 	bool TriggerLeftKey() const { return moveLeftTriggered_; }
 	bool TriggerRightKey() const { return moveRightTriggered_; }
 
 	// --- ジャンプ ---
-	bool IsJumpHeld() const { return jumpHeld_; }           // Space / A
-	bool IsJumpTriggered() const { return jumpTriggered_; } // 立ち上がり
+	bool IsJumpHeld() const { return jumpHeld_; }           // Space / Aボタン
+	bool IsJumpTriggered() const { return jumpTriggered_; } // 押した瞬間
 
 	// --- アクション ---
-	bool IsWeaponSwitchTriggered() const { return weaponSwitchTriggered_; } // Q / Y
+	bool IsWeaponSwitchTriggered() const { return weaponSwitchTriggered_; } // Q / Yボタン
 	bool IsPauseTriggered() const { return pauseTriggered_; }               // Esc / Start
-	bool IsInteractTriggered() const { return interactTriggered_; }         // F / X
-	bool IsAttackUpHeld() const { return attackUpHeld_; }                   // W / stick up
-	bool IsAttackDownHeld() const { return attackDownHeld_; }               // S / stick down (下攻撃 + ドロップスルー)
+	bool IsInteractTriggered() const { return interactTriggered_; }         // F / Xボタン
+	bool IsAttackUpHeld() const { return attackUpHeld_; }                    // W / スティック上
+	bool IsAttackDownHeld() const { return attackDownHeld_; }                // S / スティック下（下攻撃＋すり抜け）
 
-	// --- 攻撃 / 発砲 (マウス左 / RT) ---
+	// --- 攻撃／射撃（マウス左／RT） ---
 	bool IsPrimaryTriggered() const { return primaryTriggered_; }
 	bool IsPrimaryHeld() const { return primaryHeld_; }
-	// 旧名(エイリアス)。Qは武器切替なので攻撃には含めない。
+	// 旧名称（互換用エイリアス）。Qは武器切り替えなので攻撃入力には含めない。
 	bool TriggerAttackKey() const { return primaryHeld_; }
 	bool TriggerAttackKeyEdge() const { return primaryTriggered_; }
 	bool TriggerMouseLeft() const { return primaryMouseTriggered_; }
 
-	// --- ガード (マウス右 / LT / LB) ---
+	// --- ガード（マウス右／LT／LB） ---
 	bool IsBlockHeld() const { return blockHeld_; }
 	bool IsSecondaryTriggered() const { return secondaryTriggered_; }
 
 	// --- 決定 ---
-	// Space / マウス左 / A
+	// Space / マウス左 / Aボタン
 	bool TriggerDecisionKey() const { return jumpHeld_ || primaryMouseHeld_; }
 	bool TriggerDecisionKeyEdge() const { return jumpTriggered_ || primaryMouseTriggered_; }
-	// Space / Controller A のみ(マウスクリックはUIMenuがAABBで判定)
+	// Space / コントローラーAのみ（マウスクリックはUIMenuがAABBで判定）。
 	bool IsMenuConfirmTriggered() const { return jumpTriggered_; }
 
 	// --- メニュー操作 ---
@@ -98,7 +99,7 @@ public:
 	bool MoveStickLeft() const { return menuLeftTriggered_; }
 	bool MoveStickRight() const { return menuRightTriggered_; }
 
-	// 右スティックのエイム方向(デッドゾーン外のとき。x右+, y上+、長さ0〜1)
+	// 右スティックのエイム方向（デッドゾーン外の場合）。xは右が正、yは上が正、長さは0～1。
 	KamataEngine::Vector2 GetAimStick() const { return aimStick_; }
 	bool IsAimStickActive() const { return aimStickActive_; }
 
@@ -107,25 +108,31 @@ public:
 	int GetMouseY() const { return mouseY_; }
 	KamataEngine::Vector2 GetMouseScreenPosition() const { return mouseMovement_; }
 
-	// TPSカメラ用の相対マウス移動量。ロック中のみ値が入る。
+	// TPSカメラ用の相対マウス移動量。ロック中、またはフリーカーソル中の右クリック旋回時に値が入る。
 	KamataEngine::Vector2 GetMouseDelta() const { return mouseDelta_; }
 
 	// ゲームプレイ中のみAltによるカーソルロック切り替えを許可する。
-	// false: UI用(システムカーソル非表示・自由移動)、true: gameplay(初期ロック)。
+	// false：UI用（OSカーソル非表示・自由移動）、true：ゲームプレイ用（初期状態はロック）。
 	void SetCursorLockAllowed(bool allowed);
-	bool IsDashTriggered() const { return dashTriggered_; } // Shift / B
+	bool IsDashTriggered() const { return dashTriggered_; } // Shift / Bボタン
+
+	// ゲームプレイ中にAltでロックを解除している状態かどうか。
+	bool IsFreeCursorMode() const { return cursorLockAllowed_ && !lockCursor_; }
+	// フリーカーソル中にマウス右ボタンを押している状態（カメラ旋回中）。
+	bool IsFreeOrbiting() const { return IsFreeCursorMode() && secondaryMouseHeld_; }
+
 private:
 	InputManager() = default;
 	~InputManager();
 	InputManager(const InputManager&) = delete;
 	InputManager& operator=(const InputManager&) = delete;
 
-	// カーソルとマウス相対移動量の管理
+	// カーソル表示状態とマウスの相対移動量を管理する。
 	void UpdateMouseCapture(bool lockCursor);
 	void ReleaseMouseCapture();
 	void SetSystemCursorVisible(bool visible);
 
-	// movement
+	// 移動入力
 	bool moveLeftHeld_ = false;
 	bool moveRightHeld_ = false;
 	bool moveLeftTriggered_ = false;
@@ -141,7 +148,7 @@ private:
 	bool attackUpHeld_ = false;
 	bool attackDownHeld_ = false;
 
-	// mouse
+	// マウス入力
 	KamataEngine::Vector2 mouseMovement_{};
 	int mouseX_ = 0;
 	int mouseY_ = 0;
@@ -150,7 +157,7 @@ private:
 	bool secondaryMouseHeld_ = false;
 	bool secondaryMouseTriggered_ = false;
 
-	// Cursor mode state
+	// カーソルモードの状態
 	bool lockCursor_ = false;
 	bool cursorLockAllowed_ = false;
 	bool cursorModeInitialized_ = false;
@@ -158,16 +165,20 @@ private:
 	bool mouseCaptured_ = false;
 	void* capturedWindow_ = nullptr;
 
-	// Alt入力の連続切り替えを防ぐクールダウン(60fpsで約0.17秒)
+	// フリーカーソルで右クリック旋回を開始した直後の急な移動量を防ぐための前回座標。
+	KamataEngine::Vector2 previousFreeOrbitMousePosition_{};
+	bool freeOrbitMouseInitialized_ = false;
+
+	// Altによる連続切り替えを防ぐクールダウン（60fpsで約0.17秒）。
 	int cursorToggleCooldownFrames_ = 0;
 	static constexpr int kCursorToggleCooldownFrames_ = 10;
 
 	bool dashTriggered_ = false;
 
-	// TPS camera input
+	// TPSカメラ用のマウス移動量
 	KamataEngine::Vector2 mouseDelta_ = {};
 
-	// combined (mouse | pad)
+	// マウス入力とパッド入力を統合した状態
 	bool primaryTriggered_ = false;
 	bool primaryHeld_ = false;
 	bool blockHeld_ = false;
@@ -181,7 +192,7 @@ private:
 	KamataEngine::Vector2 aimStick_{};
 	bool aimStickActive_ = false;
 
-	// controller
+	// コントローラーの現在フレームと前フレームの状態
 	XINPUT_STATE controllerState_{};
 	XINPUT_STATE previousControllerState_{};
 

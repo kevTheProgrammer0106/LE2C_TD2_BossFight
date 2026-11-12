@@ -1,6 +1,14 @@
 #include "GameAssets.h"
 
+#include <filesystem>
+
 using namespace KamataEngine;
+
+namespace {
+// Heavy sabre asset names: Resources/<name>/<name>.obj and Resources/<name>/<name>.png
+// Change this to match the folder of the old project's sabre model.
+constexpr const char* kHeavySabreName = "weaponHeavySword";
+} // namespace
 
 void GameAssets::Load() {
 	// --- Skydome ---
@@ -21,6 +29,14 @@ void GameAssets::Load() {
 	playerBodyTex = TextureManager::Load("./Resources/playerBody/playerBody.png");
 	playerHeadTex = TextureManager::Load("./Resources/playerHead/playerHead.png");
 	playerHatTex = TextureManager::Load("./Resources/playerHat/playerShako.png");
+
+	// --- Heavy sabre (checked first: CreateFromOBJ asserts on a missing file) ---
+	const std::string sabreDir = std::string("Resources/") + kHeavySabreName + "/";
+	if (std::filesystem::exists(sabreDir + kHeavySabreName + ".obj")) {
+		modelHeavySabre.reset(Model::CreateFromOBJ(kHeavySabreName, true));
+		const std::string texPath = sabreDir + kHeavySabreName + ".png";
+		heavySabreTex = TextureManager::Load(std::filesystem::exists(texPath) ? "./" + texPath : std::string("./Resources/white1x1.png"));
+	}
 
 	// --- Block: the old linkID 0 block (grass) ---
 	modelBlock.reset(Model::CreateFromOBJ("blockGrass"));

@@ -5,16 +5,18 @@
 #include <vector>
 
 #include "CameraController.h"
+#include "DebugMenu.h"
 #include "Fade.h"
 #include "GameAssets.h"
 #include "Global.h"
+#include "InputManager.h"
 #include "MapChipField.h"
 #include "Player.h"
-#include "InputManager.h"
 
 class StageManager;
 
-/// Top-down gameplay scene. Only the player spawns and moves; there are no enemies, items or HUD yet.
+/// Top-down gameplay scene. Only the player (with the heavy sabre) spawns and moves; there are no enemies, items or HUD yet.
+/// Debug builds: F1 reload scene, F3 debug window, F4 collision boxes (see DebugMenu).
 class GameScene final {
 public:
 	~GameScene();
@@ -34,12 +36,17 @@ public:
 	Player* GetPlayer() const { return player_.get(); }
 
 private:
+	friend class DebugMenu;
+
 	// Loads every chunk of the stage into mapChipField_. Chunks on the X axis (cx,0) and Z axis (0,cz) come first;
 	// the x+z chunk (cx,cz) is generated when BOTH its x chunk and its z chunk are occupied.
 	void LoadStageChunks();
 	// Builds the block objects of one chunk and spawns whatever its number codes ask for (player).
 	void GenerateChunk(uint32_t chunkX, uint32_t chunkZ);
 	void SpawnPlayer(const KamataEngine::Vector3& position);
+
+	// Debug wireframes (player / footprint / facing / attack hitbox / weapon / nearby blocks). Toggled with showCollisionDebug_.
+	void DrawCollisionDebug();
 
 	StageManager* stageManager_ = nullptr;
 
@@ -53,6 +60,9 @@ private:
 
 	std::unique_ptr<Player> player_;
 	std::unique_ptr<Fade> fade_;
+
+	DebugMenu debugMenu_;
+	bool showCollisionDebug_ = false;
 
 	bool finished_ = false;
 	bool returnToMenuRequested_ = false;
