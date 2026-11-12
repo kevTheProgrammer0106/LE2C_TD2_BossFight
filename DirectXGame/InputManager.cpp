@@ -210,6 +210,7 @@ void InputManager::Update() {
 	interactTriggered_ = input->TriggerKey(DIK_F) || padEdge(XINPUT_GAMEPAD_X);
 	attackUpHeld_ = input->PushKey(DIK_W) || PadUp(cur);
 	attackDownHeld_ = input->PushKey(DIK_S) || PadDown(cur);
+	dashTriggered_ = input->TriggerKey(DIK_LSHIFT) || input->TriggerKey(DIK_RSHIFT) || padEdge(XINPUT_GAMEPAD_B);
 
 	// --- Mouse ---
 	mouseMovement_ = input->GetMousePosition();

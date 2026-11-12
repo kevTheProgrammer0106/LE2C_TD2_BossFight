@@ -75,4 +75,6 @@ private:
 	static inline KamataEngine::Vector3 rotationOffset_ = {0.3f, 0.0f, 0.0f};
 
 	static inline float kInterpolationRate = 0.1f;
+	float currentInterpolation_ = 0.1f;
+	static inline float kBoostInterpolationRate = 0.4f; // follow rate while dashing / rolling
 };

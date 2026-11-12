@@ -113,7 +113,7 @@ public:
 	// ゲームプレイ中のみAltによるカーソルロック切り替えを許可する。
 	// false: UI用(システムカーソル非表示・自由移動)、true: gameplay(初期ロック)。
 	void SetCursorLockAllowed(bool allowed);
-
+	bool IsDashTriggered() const { return dashTriggered_; } // Shift / B
 private:
 	InputManager() = default;
 	~InputManager();
@@ -161,6 +161,8 @@ private:
 	// Alt入力の連続切り替えを防ぐクールダウン(60fpsで約0.17秒)
 	int cursorToggleCooldownFrames_ = 0;
 	static constexpr int kCursorToggleCooldownFrames_ = 10;
+
+	bool dashTriggered_ = false;
 
 	// TPS camera input
 	KamataEngine::Vector2 mouseDelta_ = {};

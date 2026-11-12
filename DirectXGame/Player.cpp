@@ -1,14 +1,31 @@
 #define NOMINMAX
 #include "Player.h"
+#include "AnimationManager.h"
+#include "InputManager.h"
 #include "MapChipField.h"
 #include "PlayerBehavior.h"
-#include "InputManager.h"
 
 #include <algorithm>
 #include <cmath>
 #include <numbers>
 
 using namespace KamataEngine;
+
+namespace {
+constexpr float kDt = 1.0f / 60.0f;
+
+Matrix4x4 EulerMatrix(const Vector3& r) { return Multiply(MakeRotateXMatrix(r.x), Multiply(MakeRotateYMatrix(r.y), MakeRotateZMatrix(r.z))); }
+
+// S * R * T
+Matrix4x4 BuildWorld(const Vector3& s, const Matrix4x4& rot, const Vector3& t) { return Multiply(MakeScaleMatrix(s), Multiply(rot, MakeTranslateMatrix(t))); }
+
+void Commit(WorldTransform& wt, const Vector3& s, const Matrix4x4& rot, const Vector3& t) {
+	wt.scale_ = s;
+	wt.translation_ = t;
+	wt.matWorld_ = BuildWorld(s, rot, t);
+	wt.TransferMatrix();
+}
+} // namespace
 
 Player::Player() = default;
 Player::~Player() = default;
@@ -24,10 +41,13 @@ void Player::Initialize(const std::array<PartResources, static_cast<size_t>(Part
 	}
 	camera_ = camera;
 	velocity_ = {};
+	moveMode_ = MoveMode::kNormal;
+	modeTimer_ = 0.0f;
+	currentPose_ = {};
 
 	worldTransform_.Initialize();
 	worldTransform_.scale_ = {1.0f, 1.0f, 1.0f};
-	worldTransform_.rotation_.y = 0.0f; // facing +Z (up the screen)
+	worldTransform_.rotation_.y = camera_->rotation_.y; // back to the camera
 	worldTransform_.translation_ = position;
 
 	behavior_ = std::make_unique<PlayerBehavior>(this);
@@ -40,35 +60,117 @@ void Player::Update() {
 	if (behavior_) {
 		behavior_->Update();
 	}
+	// The player never turns toward its move direction: its back always faces the camera.
+	if (camera_) {
+		worldTransform_.rotation_.y = camera_->rotation_.y;
+	}
 	Move();
 	MapChipCollisionUpdate();
 	UpdateBodyParts();
 }
 
-// カメラの向きを基準にX-Z平面上を移動する
-// カメラの向きを基準にX-Z平面上を移動する
+void Player::EnterDash(const Vector3& dir) {
+	moveMode_ = MoveMode::kDash;
+	modeTimer_ = 0.0f;
+
+	// ダッシュ開始時の方向を固定する
+	dashDir_ = dir;
+}
+
+void Player::EnterRoll(const Vector3& dir, float sign) {
+	moveMode_ = MoveMode::kRoll;
+	modeTimer_ = 0.0f;
+	rollDir_ = dir;
+	rollSign_ = sign;
+}
+
+// カメラの向きを基準にX-Z平面上を移動する。Shift: ダッシュ / ダッシュ中にもう一度: バレルロール
+
 void Player::Move() {
 	InputManager* input = InputManager::GetInstance();
 
 	const float cameraYaw = camera_ ? camera_->rotation_.y : 0.0f;
 
-	// カメラの前方ベクトル
-	const Vector3 forward = {std::sin(cameraYaw), 0.0f, std::cos(cameraYaw)};
+	const float sinY = std::sin(cameraYaw);
+	const float cosY = std::cos(cameraYaw);
 
-	// カメラの右方向ベクトル
-	const Vector3 right = {std::cos(cameraYaw), 0.0f, -std::sin(cameraYaw)};
+	// カメラ基準の前方・右方向を取得
+	const Vector3 forward = {sinY, 0.0f, cosY};
+	const Vector3 right = {cosY, 0.0f, -sinY};
 
 	const Vector2 moveAxis = input->GetMoveAxis();
 
-	// カメラ基準の移動方向
-	Vector3 dir = {right.x * moveAxis.x + forward.x * moveAxis.y, 0.0f, right.z * moveAxis.x + forward.z * moveAxis.y};
+	// 入力方向をカメラローカル空間で取得
+	Vector3 localDir = {moveAxis.x, 0.0f, moveAxis.y};
 
-	const float len = std::sqrt(dir.x * dir.x + dir.z * dir.z);
+	const float len = std::sqrt(localDir.x * localDir.x + localDir.z * localDir.z);
+	const bool hasInput = len > 0.0001f;
 
-	if (len > 0.0f) {
-		dir.x /= len;
-		dir.z /= len;
+	if (hasInput) {
+		localDir.x /= len;
+		localDir.z /= len;
+	}
 
+	// 入力がない場合はカメラ基準の後方をデフォルトにする
+	const Vector3 actionDirLocal = hasInput ? localDir : Vector3{0.0f, 0.0f, -1.0f};
+
+	// カメラローカル方向を現在のYawでワールド方向に変換
+	auto ToWorldDirection = [&](const Vector3& local) -> Vector3 { return {right.x * local.x + forward.x * local.z, 0.0f, right.z * local.x + forward.z * local.z}; };
+
+	const Vector3 dir = ToWorldDirection(localDir);
+
+	// ---- state transitions ----
+	if (input->IsDashTriggered()) {
+		if (moveMode_ == MoveMode::kNormal) {
+			// ダッシュ方向を開始時のワールド方向で固定
+			EnterDash(ToWorldDirection(actionDirLocal));
+
+			// ロールは従来どおりカメラ基準の方向を保持
+			rollDir_ = actionDirLocal;
+		} else if (moveMode_ == MoveMode::kDash) {
+			// ダッシュ方向をそのままロールに引き継ぐ
+			const float side = rollDir_.x;
+			EnterRoll(rollDir_, side < -0.1f ? 1.0f : -1.0f);
+		}
+	}
+
+	switch (moveMode_) {
+	case MoveMode::kDash: {
+		modeTimer_ += kDt;
+
+		// 開始時に固定したワールド方向を維持。カメラ回転の影響を受けない
+		velocity_.x += (dashDir_.x * kDashSpeed - velocity_.x) * kDashAccel;
+		velocity_.z += (dashDir_.z * kDashSpeed - velocity_.z) * kDashAccel;
+
+		if (modeTimer_ >= kDashDuration) {
+			moveMode_ = MoveMode::kNormal;
+			modeTimer_ = 0.0f;
+		}
+		return;
+	}
+
+	case MoveMode::kRoll: {
+		modeTimer_ += kDt;
+
+		// 固定したローカル方向にカメラの回転を反映
+		const Vector3 rollWorldDir = ToWorldDirection(rollDir_);
+
+		velocity_ = {rollWorldDir.x * kRollSpeed, 0.0f, rollWorldDir.z * kRollSpeed};
+
+		if (modeTimer_ >= kRollDuration) {
+			moveMode_ = MoveMode::kNormal;
+			modeTimer_ = 0.0f;
+			velocity_ = {}; // stop dead at the end of the roll, no momentum leaks into walking
+		}
+		return;
+	}
+
+	case MoveMode::kNormal:
+		break;
+	}
+
+	// ---- normal walking ----
+	if (hasInput) {
 		velocity_.x += dir.x * kAcceleration;
 		velocity_.z += dir.z * kAcceleration;
 
@@ -86,12 +188,12 @@ void Player::Move() {
 		if (std::abs(velocity_.x) < 0.0005f) {
 			velocity_.x = 0.0f;
 		}
-
 		if (std::abs(velocity_.z) < 0.0005f) {
 			velocity_.z = 0.0f;
 		}
 	}
 }
+
 
 void Player::MapChipCollisionUpdate() {
 	if (!mapChipField_) {
@@ -122,23 +224,35 @@ void Player::MapChipCollisionUpdate() {
 void Player::UpdateBodyParts() {
 	WorldTransformUpdate(worldTransform_);
 
-	parts_[body].transform.translation_ = worldTransform_.translation_;
-	parts_[body].transform.rotation_ = worldTransform_.rotation_;
-	parts_[body].transform.scale_ = worldTransform_.scale_;
-	WorldTransformUpdate(parts_[body].transform);
+	// ---- animation: smoothed pose (AnimationManager::SmoothSRT) + barrel roll spin ----
+	SRTOffset target{};
+	float rollAngle = 0.0f;
+	if (moveMode_ == MoveMode::kDash) {
+		target = kDashPose;
+	} else if (moveMode_ == MoveMode::kRoll) {
+		target = kRollPose;
+		const float t = std::clamp(modeTimer_ / std::max(kRollDuration, 0.0001f), 0.0f, 1.0f);
+		rollAngle = rollSign_ * 2.0f * std::numbers::pi_v<float> * EaseInOut(0.0f, 1.0f, t);
+	}
+	currentPose_ = AnimationManager::SmoothSRT(currentPose_, target);
 
-	const Matrix4x4 bodyRot = Multiply(MakeRotateXMatrix(parts_[body].transform.rotation_.x), Multiply(MakeRotateYMatrix(parts_[body].transform.rotation_.y), MakeRotateZMatrix(parts_[body].transform.rotation_.z)));
-	parts_[head].transform.translation_ = parts_[body].transform.translation_ + TransformNormal(headOffset_.translation, bodyRot);
-	parts_[head].transform.rotation_ = parts_[body].transform.rotation_ + headOffset_.rotation;
-	parts_[head].transform.scale_ = {
-	    parts_[body].transform.scale_.x * headOffset_.scale.x, parts_[body].transform.scale_.y * headOffset_.scale.y, parts_[body].transform.scale_.z * headOffset_.scale.z};
-	WorldTransformUpdate(parts_[head].transform);
+	// Order: pitch (lean) -> roll around the forward axis -> yaw (camera). A plain Euler X-Y-Z would roll around
+	// the WORLD Z axis, which is not "forward" once the player is turned, so the matrix is built by hand.
+	const Matrix4x4 bodyRot = Multiply(MakeRotateXMatrix(currentPose_.rotation.x), Multiply(MakeRotateZMatrix(currentPose_.rotation.z + rollAngle), MakeRotateYMatrix(worldTransform_.rotation_.y)));
 
-	const Matrix4x4 headRot = Multiply(MakeRotateXMatrix(parts_[head].transform.rotation_.x), Multiply(MakeRotateYMatrix(parts_[head].transform.rotation_.y), MakeRotateZMatrix(parts_[head].transform.rotation_.z)));
-	parts_[hat].transform.translation_ = parts_[head].transform.translation_ + TransformNormal(hatOffset_.translation, headRot);
-	parts_[hat].transform.rotation_ = parts_[head].transform.rotation_ + hatOffset_.rotation;
-	parts_[hat].transform.scale_ = {parts_[head].transform.scale_.x * hatOffset_.scale.x, parts_[head].transform.scale_.y * hatOffset_.scale.y, parts_[head].transform.scale_.z * hatOffset_.scale.z};
-	WorldTransformUpdate(parts_[hat].transform);
+	const Vector3 bodyScale = {worldTransform_.scale_.x * currentPose_.scale.x, worldTransform_.scale_.y * currentPose_.scale.y, worldTransform_.scale_.z * currentPose_.scale.z};
+	const Vector3 bodyPos = worldTransform_.translation_ + currentPose_.translation;
+	Commit(parts_[body].transform, bodyScale, bodyRot, bodyPos);
+
+	const Matrix4x4 headRot = Multiply(EulerMatrix(headOffset_.rotation), bodyRot);
+	const Vector3 headScale = {bodyScale.x * headOffset_.scale.x, bodyScale.y * headOffset_.scale.y, bodyScale.z * headOffset_.scale.z};
+	const Vector3 headPos = bodyPos + TransformNormal(headOffset_.translation, bodyRot);
+	Commit(parts_[head].transform, headScale, headRot, headPos);
+
+	const Matrix4x4 hatRot = Multiply(EulerMatrix(hatOffset_.rotation), headRot);
+	const Vector3 hatScale = {headScale.x * hatOffset_.scale.x, headScale.y * hatOffset_.scale.y, headScale.z * hatOffset_.scale.z};
+	const Vector3 hatPos = headPos + TransformNormal(hatOffset_.translation, headRot);
+	Commit(parts_[hat].transform, hatScale, hatRot, hatPos);
 }
 
 void Player::Draw() {

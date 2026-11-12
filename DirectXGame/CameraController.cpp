@@ -137,10 +137,14 @@ void CameraController::Update() {
 	if (needsSnap_) {
 		camera_->translation_ = desiredPos;
 		needsSnap_ = false;
+		currentInterpolation_ = std::clamp(kInterpolationRate, 0.0f, 1.0f);
 	} else {
-		const float interpolation = std::clamp(kInterpolationRate, 0.0f, 1.0f);
+		// raise the follow rate while dashing / rolling so the camera keeps up, then ease it back
+		const bool boosting = target_->IsDashing() || target_->IsRolling();
+		const float wanted = std::clamp(boosting ? kBoostInterpolationRate : kInterpolationRate, 0.0f, 1.0f);
+		currentInterpolation_ += (wanted - currentInterpolation_) * 0.2f;
 
-		camera_->translation_ = Lerp(camera_->translation_, desiredPos, interpolation);
+		camera_->translation_ = Lerp(camera_->translation_, desiredPos, currentInterpolation_);
 	}
 
 	ApplyThirdPersonView();
