@@ -22,6 +22,10 @@ void GameAssets::Load() {
 	playerHeadTex = TextureManager::Load("./Resources/playerHead/playerHead.png");
 	playerHatTex = TextureManager::Load("./Resources/playerHat/playerShako.png");
 
+	// --- Boss ---
+	modelBoss.reset(Model::CreateFromOBJ("boss", true));
+	bossTex = TextureManager::Load("./Resources/boss/White1x1.png");
+
 	// --- Block: the old linkID 0 block (grass) ---
 	modelBlock.reset(Model::CreateFromOBJ("blockGrass"));
 	blockTex = TextureManager::Load("./Resources/blockGrass/blockGrass.png");

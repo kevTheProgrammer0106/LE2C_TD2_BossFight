@@ -9,7 +9,7 @@ class MapChipField;
 class Boss {
 
 public:                               // ↓モデルのパーツを格納する構造体
-	void Initialize(const std::array<PartResources, static_cast<size_t>(PartSlot::kCount)>& partResources, KamataEngine::Camera* camera, const KamataEngine::Vector3& position);
+	void Initialize(PartResources& partResources, KamataEngine::Camera* camera, const KamataEngine::Vector3& position);
 	void Update();
 	void Draw();
 

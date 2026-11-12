@@ -32,6 +32,10 @@ public:
 	uint32_t playerHeadTex = 0;
 	uint32_t playerHatTex = 0;
 
+	// --- Boss ---
+	std::unique_ptr<KamataEngine::Model> modelBoss;
+	uint32_t bossTex = 0;
+
 	// --- Block (the only tile type for now) ---
 	std::unique_ptr<KamataEngine::Model> modelBlock;
 	uint32_t blockTex = 0;

@@ -9,6 +9,7 @@
 #include "GameAssets.h"
 #include "Global.h"
 #include "MapChipField.h"
+#include "Boss.h"
 #include "Player.h"
 #include "InputManager.h"
 
@@ -40,7 +41,7 @@ private:
 	// Builds the block objects of one chunk and spawns whatever its number codes ask for (player).
 	void GenerateChunk(uint32_t chunkX, uint32_t chunkZ);
 	void SpawnPlayer(const KamataEngine::Vector3& position);
-
+	void SpawnBoss(const KamataEngine::Vector3& position);
 	StageManager* stageManager_ = nullptr;
 
 	KamataEngine::Camera camera_;
@@ -52,6 +53,7 @@ private:
 	std::vector<std::vector<bool>> chunkOccupied_; // [chunkX][chunkZ]
 
 	std::unique_ptr<Player> player_;
+	std::unique_ptr<Boss> boss_;
 	std::unique_ptr<Fade> fade_;
 
 	bool finished_ = false;
